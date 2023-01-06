@@ -1,7 +1,5 @@
 package frc.sorutil.motor;
 
-import com.ctre.phoenix.motorcontrol.FeedbackDevice;
-import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.sensors.CANCoder;
 import com.ctre.phoenix.sensors.SensorTimeBase;
 
