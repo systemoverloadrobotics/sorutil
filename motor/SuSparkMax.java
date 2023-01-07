@@ -3,6 +3,8 @@ package frc.sorutil.motor;
 import java.util.logging.Logger;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.MotorFeedbackSensor;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.SparkMaxAnalogSensor;
 import com.revrobotics.CANSparkMax.ControlType;
 import com.revrobotics.SparkMaxAnalogSensor.Mode;
 
@@ -21,6 +23,10 @@ public class SuSparkMax extends SuController {
 
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
+  
+  // Privately store references to the connected sensor objects that Rev uses.
+  private SparkMaxAnalogSensor analogSensor;
+  private RelativeEncoder digitalSensor;
 
   public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig,
       SensorConfiguration sensorConfig) {
@@ -78,12 +84,16 @@ public class SuSparkMax extends SuController {
           case QUAD_ENCODER:
             // fallthrough
           case MAG_ENCODER_RELATIVE:
-            sensor = sparkMax.getAlternateEncoder(connected.countsPerRev);
+            var alt = sparkMax.getAlternateEncoder(connected.countsPerRev);
+            digitalSensor = alt;
+            sensor = alt;
             break;
           case MAG_ENCODER_ABSOLUTE:
             // fallthrough
           case PWM_ENCODER:
-            sensor = sparkMax.getAnalog(Mode.kAbsolute);
+            var analog = sparkMax.getAnalog(Mode.kAbsolute);
+            analogSensor = analog;
+            sensor = analog;
             break;
           default:
             throw new MotorConfigurationError("unknown encoder type: " + connected.type.toString());
@@ -250,16 +260,76 @@ public class SuSparkMax extends SuController {
 
   @Override
   public double outputPosition() {
+    if (sensorConfig.source() instanceof IntegratedSensorSource) {
+      return sparkMax.getEncoder().getPosition() * 360.0;
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
+      switch (type) {
+        case QUAD_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_RELATIVE:
+          return digitalSensor.getPosition() * 360.0;
+        case PWM_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_ABSOLUTE:
+          return analogSensor.getPosition() * 360.0;
+        default:
+          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+      }
+    }
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+    }
     return 0;
   }
 
   @Override
   public double outputVelocity() {
+    if (sensorConfig.source() instanceof IntegratedSensorSource) {
+      return sparkMax.getEncoder().getVelocity();
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
+      switch (type) {
+        case QUAD_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_RELATIVE:
+          return digitalSensor.getVelocity();
+        case PWM_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_ABSOLUTE:
+          return analogSensor.getVelocity();
+        default:
+          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+      }
+    }
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+    }
     return 0;
   }
 
   @Override
   public void setSensorPosition(double position) {
-
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
+      switch (type) {
+        case QUAD_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_RELATIVE:
+          digitalSensor.setPosition(position / 360.0);
+          break;
+        case PWM_ENCODER:
+          // fallthrough
+        case MAG_ENCODER_ABSOLUTE:
+          throw new MotorConfigurationError("can't override the position of an absolute sensor");
+        default:
+          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+      }
+    }
   }
 }

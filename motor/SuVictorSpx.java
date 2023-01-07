@@ -198,16 +198,24 @@ public class SuVictorSpx extends SuController {
 
   @Override
   public double outputPosition() {
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+    }
     return 0;
   }
 
   @Override
   public double outputVelocity() {
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+    }
     return 0;
   }
 
   @Override
   public void setSensorPosition(double position) {
-
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+    }
   }
 }

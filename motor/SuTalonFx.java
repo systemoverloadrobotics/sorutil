@@ -243,9 +243,7 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      // TODO: once we can confirm the actual state of the sensor source, replace with
-      // faster updating call.
-      return talon.getSensorCollection().getIntegratedSensorPosition() / COUNTS_PER_REVOLUTION_INTEGRATED * 360.0;
+      return talon.getSelectedSensorPosition() / (COUNTS_PER_REVOLUTION_INTEGRATED * 360.0);
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
@@ -256,9 +254,7 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      // TODO: once we can confirm the actual state of the sensor source, replace with
-      // faster updating call.
-      return talon.getSensorCollection().getIntegratedSensorVelocity() * 10.0 * 60.0 / COUNTS_PER_REVOLUTION_INTEGRATED;
+      return talon.getSelectedSensorVelocity() * 10.0 * 60.0 / COUNTS_PER_REVOLUTION_INTEGRATED;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();

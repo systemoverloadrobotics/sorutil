@@ -274,16 +274,32 @@ public class SuTalonSrx extends SuController {
 
   @Override
   public double outputPosition() {
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      var source = (ConnectedSensorSource) sensorConfig.source();
+      return talon.getSelectedSensorPosition() / (source.countsPerRev * 360.0);
+    }
     return 0;
   }
 
   @Override
   public double outputVelocity() {
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      var source = (ConnectedSensorSource) sensorConfig.source();
+      return talon.getSelectedSensorVelocity() * 10.0 * 60.0 / source.countsPerRev;
+    }
     return 0;
   }
 
   @Override
   public void setSensorPosition(double position) {
-
+    if (sensorConfig.source() instanceof ExternalSensorSource) {
+      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+    }
   }
 }
