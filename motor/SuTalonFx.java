@@ -16,6 +16,7 @@ import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 public class SuTalonFx extends SuController {
   private static final double DEFAULT_CURRENT_LIMIT = 80;
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
+  private static final double COUNTS_PER_REVOLUTION_INTEGRATED = 2048;
 
   private final WPI_TalonFX talon;
   private MotorConfiguration config;
@@ -128,9 +129,9 @@ public class SuTalonFx extends SuController {
       case PERCENT_OUTPUT:
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
       case POSITION:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
       case VELOCITY:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -145,6 +146,39 @@ public class SuTalonFx extends SuController {
         }
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
     }
+  }
+
+  private double positionSetpoint(double setpoint) {
+    // Using the integrated Falcon source
+    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      double motorDegrees = integrated.outputOffset * setpoint;
+      double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED/360.0;
+
+      return motorDegrees * countsToDegrees;
+    }
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+  }
+
+  private double velocitySetpoint(double setpoint) {
+    // Using the integrated Falcon source
+    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      double motorRpm = integrated.outputOffset * setpoint;
+
+      return (COUNTS_PER_REVOLUTION_INTEGRATED * motorRpm) / 10.0;
+    }
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
   @Override

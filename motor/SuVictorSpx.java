@@ -109,9 +109,9 @@ public class SuVictorSpx extends SuController {
       case PERCENT_OUTPUT:
         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
       case POSITION:
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, setpoint);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
       case VELOCITY:
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, setpoint);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -126,6 +126,30 @@ public class SuVictorSpx extends SuController {
         }
         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
     }
+  }
+
+  private double positionSetpoint(double setpoint) {
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      throw new MotorConfigurationError("VictorSPX motor controllers don't support connected sensors.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+  }
+
+  private double velocitySetpoint(double setpoint) {
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      throw new MotorConfigurationError("VictorSPX motor controllers don't support connected sensors.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
   @Override

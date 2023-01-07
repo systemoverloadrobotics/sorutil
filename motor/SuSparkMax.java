@@ -93,12 +93,53 @@ public class SuSparkMax extends SuController {
       case PERCENT_OUTPUT:
         sparkMax.set(setpoint);
       case POSITION:
-        Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kPosition), logger, "setting motor output");
+        Errors.handleRev(sparkMax.getPIDController().setReference(positionSetpoint(setpoint), ControlType.kPosition),
+            logger, "setting motor output");
       case VELOCITY:
-        Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kVelocity), logger, "setting motor output");
+        Errors.handleRev(sparkMax.getPIDController().setReference(velocitySetpoint(setpoint), ControlType.kVelocity),
+            logger, "setting motor output");
       case VOLTAGE:
-        Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kVoltage), logger, "setting motor output");
+        Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kVoltage), logger,
+            "setting motor output");
     }
+  }
+
+  private double positionSetpoint(double setpoint) {
+    // Using the integrated Neo source
+    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      double motorDegrees = integrated.outputOffset * setpoint;
+      double revsToDegrees = 1/360.0;
+
+      return motorDegrees * revsToDegrees;
+    }
+    // Using sensor external to the SparkMAX.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      throw new MotorConfigurationError("TalonFX motor controllers don't support connected sensors.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+  }
+
+  private double velocitySetpoint(double setpoint) {
+    // Using the integrated Neo source
+    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+
+      return integrated.outputOffset * setpoint;
+    }
+    // Using sensor external to the SparkMAX.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      throw new MotorConfigurationError("TalonFX motor controllers don't support connected sensors.");
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
   @Override

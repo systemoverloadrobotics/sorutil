@@ -140,9 +140,9 @@ public class SuTalonSrx extends SuController {
       case PERCENT_OUTPUT:
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
       case POSITION:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
       case VELOCITY:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -157,6 +157,61 @@ public class SuTalonSrx extends SuController {
         }
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
     }
+  }
+
+  private double positionSetpoint(double setpoint) {
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      var connected = (SensorConfiguration.ConnectedSensorSource)sensorConfig.source();
+      if (connected.type == SensorConfiguration.ConnectedSensorType.QUAD_ENCODER
+          || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
+        double sensorDegrees = connected.outputOffset * setpoint;
+        double countsToDegrees = connected.countsPerRev / 360.0;
+
+        return sensorDegrees * countsToDegrees;
+      }
+      
+      if (connected.type == SensorConfiguration.ConnectedSensorType.PWM_ENCODER
+          || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_ABSOLUTE) {
+        double sensorDegrees = connected.outputOffset * setpoint;
+
+        // Map the full range of the rotation to 0-1, assuming that the sensor can't over-rotate.
+        return sensorDegrees / 360.0;
+      }
+      throw new MotorConfigurationError(
+          "unsupported type of connected sensor: " + sensorConfig.source().getClass().getName());
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+  }
+
+  private double velocitySetpoint(double setpoint) {
+    // Using sensor external to the Falcon.
+    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+    }
+    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
+      var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
+      if (connected.type == SensorConfiguration.ConnectedSensorType.QUAD_ENCODER
+          || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
+        double motorRpm = connected.outputOffset * setpoint;
+
+        return (connected.countsPerRev * motorRpm) / 10.0;
+      }
+      
+      if (connected.type == SensorConfiguration.ConnectedSensorType.PWM_ENCODER
+          || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_ABSOLUTE) {
+        throw new MotorConfigurationError(
+            "cannot configure velocity setpoint mode while using an absolute sensor.");
+      }
+      throw new MotorConfigurationError(
+          "unsupported type of connected sensor: " + sensorConfig.source().getClass().getName());
+    }
+    throw new MotorConfigurationError(
+        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
   @Override
