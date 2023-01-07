@@ -1,20 +1,34 @@
 package frc.sorutil.motor;
 
 public class MotorConfiguration {
+
+    // ---- Begin configuration options ----
+
     private boolean voltageCompenstation = true; 
+
     private PidProfile pidProfile = new PidProfile(0, 0, 0);
+
     /**
-     * currentLimit is left null, where a default will be chosen for a given motor by the library, if not overriden.
+     * currentLimit specifies a current limit for the motor in Amps. If this is left
+     * as null (default), the current limit will be choosen automatically by the
+     * library using a default for the given motor controller type.
      */
     private Double currentLimit = null;
 
     private SuController.IdleMode idleMode = SuController.IdleMode.COAST;
 
+    /**
+     * neutralDeadband provides a range of motor inputs that are too low for the
+     * motor output to respond, if left null, this will be left to the default of
+     * the motor controller.
+     */
     private Double neutralDeadband = null;
 
     private boolean inverted = false;
 
     private double maxOutput = 1;
+
+    // ---- End configuration options ----
 
     public MotorConfiguration() {}
 
