@@ -65,6 +65,31 @@ public abstract class SuController {
 
   public abstract void tick();
 
+  /**
+   * Set the motor output based on a control mode to a given setpoint. The
+   * setpoint will be sought using the configured sensor and the integrated PID
+   * controller, if configured and available. Note that the sensor configuration
+   * reduction <em>will</em> be respected by this method.
+   * 
+   * @param mode     Control Mode to use, with the following options supported:
+   *                 <p>
+   *                 PERCENT_OUTPUT: a percentage from -1.0 to 1.0 that directly
+   *                 regulates the motor's output power to that percentage of the
+   *                 input voltage
+   *                 </p>
+   *                 <p>
+   *                 POSITION: position from starting position (or from set zero)
+   *                 in degrees.
+   *                 </p>
+   *                 <p>
+   *                 VELOCITY: rate of rotation in revolutions per minute (rpm)
+   *                 </p>
+   *                 <p>
+   *                 VOLTAGE: commands the motor controller to regulate directly
+   *                 to the specified value in volts
+   *                 </p>
+   * @param setpoint
+   */
   public abstract void set(ControlMode mode, double setpoint);
 
   /**
