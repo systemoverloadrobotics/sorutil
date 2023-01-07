@@ -2,10 +2,15 @@ package frc.sorutil.motor;
 
 import java.util.logging.Logger;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.MotorFeedbackSensor;
 import com.revrobotics.CANSparkMax.ControlType;
+import com.revrobotics.SparkMaxAnalogSensor.Mode;
+
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
+import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
 public class SuSparkMax extends SuController {
   private static final double STALL_LIMIT = 30;
@@ -17,8 +22,10 @@ public class SuSparkMax extends SuController {
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
 
-  public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(sparkMax, motorConfig, sensorConfig, Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceId(), name)));
+  public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig,
+      SensorConfiguration sensorConfig) {
+    super(sparkMax, motorConfig, sensorConfig,
+        Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceId(), name)));
 
     this.sparkMax = sparkMax;
   }
@@ -53,21 +60,52 @@ public class SuSparkMax extends SuController {
     Errors.handleRev(sparkMax.setIdleMode(desiredMode), logger, "setting idle mode");
 
     double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    if (config.neutralDeadband() != null){
+    if (config.neutralDeadband() != null) {
       neutralDeadband = config.neutralDeadband();
     }
 
     // TODO: this should be improved to support multiple PID controllers.
-    Errors.handleRev(sparkMax.getPIDController().setOutputRange(neutralDeadband, config.maxOutput()), logger, "setting neutral deadband");
+    Errors.handleRev(sparkMax.getPIDController().setOutputRange(neutralDeadband, config.maxOutput()), logger,
+        "setting neutral deadband");
 
-    Errors.handleRev(sparkMax.burnFlash(), logger, "saving settings to onboard Flash");
 
     if (sensorConfig != null) {
       if (sensorConfig.source() instanceof ConnectedSensorSource) {
-        throw new MotorConfigurationError(
-            "Library doesn't currently support using externally connected sensors with Spark Max, but was configured to use one.");
+        var connected = (ConnectedSensorSource)sensorConfig.source();
+        MotorFeedbackSensor sensor;
+
+        switch(connected.type) {
+          case QUAD_ENCODER:
+            // fallthrough
+          case MAG_ENCODER_RELATIVE:
+            sensor = sparkMax.getAlternateEncoder(connected.countsPerRev);
+            break;
+          case MAG_ENCODER_ABSOLUTE:
+            // fallthrough
+          case PWM_ENCODER:
+            sensor = sparkMax.getAnalog(Mode.kAbsolute);
+            break;
+          default:
+            throw new MotorConfigurationError("unknown encoder type: " + connected.type.toString());
+        }
+
+        Errors.handleRev(sensor.setInverted(connected.inverted()), logger, "setting inversion of connected sensor");
+
+        Errors.handleRev(sparkMax.getPIDController().setFeedbackDevice(sensor), logger,
+            "setting feedback device to sensor device");
+      }
+
+      if (sensorConfig.source() instanceof ExternalSensorSource) {
+        configureSoftPid();
+      }
+
+      if (sensorConfig.source() instanceof IntegratedSensorSource) {
+        Errors.handleRev(sparkMax.getPIDController().setFeedbackDevice(sparkMax.getEncoder()), logger,
+            "setting feedback device to integral device");
       }
     }
+
+    Errors.handleRev(sparkMax.burnFlash(), logger, "saving settings to onboard Flash");
   }
 
   @Override
@@ -78,65 +116,113 @@ public class SuSparkMax extends SuController {
   @Override
   public void tick() {
     Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
+
+    if (softPidControllerEnabled) {
+      if (softPidControllerMode) {
+        // velocity mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+        double output = softPidController.calculate(current);
+        sparkMax.set(output);
+      } else {
+        // position mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+        double output = softPidController.calculate(current);
+        sparkMax.set(output);
+      }
+    }
   }
 
   @Override
   public void set(ControlMode mode, double setpoint) {
-    // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
+    // Skip updating the motor if the setpoint is the same, this reduces
+    // unneccessary CAN messages.
     if (setpoint == lastSetpoint && mode == lastMode) {
       return;
     }
     lastSetpoint = setpoint;
     lastMode = mode;
+    softPidControllerEnabled = false;
 
-    switch(mode) {
+    switch (mode) {
       case PERCENT_OUTPUT:
         sparkMax.set(setpoint);
+        break;
       case POSITION:
-        Errors.handleRev(sparkMax.getPIDController().setReference(positionSetpoint(setpoint), ControlType.kPosition),
-            logger, "setting motor output");
+        setPosition(setpoint);
+        break;
       case VELOCITY:
-        Errors.handleRev(sparkMax.getPIDController().setReference(velocitySetpoint(setpoint), ControlType.kVelocity),
-            logger, "setting motor output");
+        setVelocity(setpoint);
+        break;
       case VOLTAGE:
         Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kVoltage), logger,
             "setting motor output");
+        break;
     }
   }
 
-  private double positionSetpoint(double setpoint) {
+  private void setPosition(double setpoint) {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double motorDegrees = integrated.outputOffset * setpoint;
-      double revsToDegrees = 1/360.0;
+      double revsToDegrees = 1 / 360.0;
+      double output = motorDegrees * revsToDegrees;
 
-      return motorDegrees * revsToDegrees;
+      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
+          logger, "setting motor output");
+      return;
     }
     // Using sensor external to the SparkMAX.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = false;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      double output = softPidController.calculate(current, setpoint);
+      sparkMax.set(output);
+      return;
     }
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
-      throw new MotorConfigurationError("TalonFX motor controllers don't support connected sensors.");
+      var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
+      double motorDegrees = connected.outputOffset * setpoint;
+      double revsToDegrees = 1 / 360.0;
+      double output = motorDegrees * revsToDegrees;
+
+      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
+          logger, "setting motor output");
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private double velocitySetpoint(double setpoint) {
+  private void setVelocity(double setpoint) {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
+      double output = integrated.outputOffset * setpoint;
 
-      return integrated.outputOffset * setpoint;
+      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
+          logger, "setting motor output");
+      return;
     }
     // Using sensor external to the SparkMAX.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = true;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      double output = softPidController.calculate(current, setpoint);
+      sparkMax.set(output);
+      return;
     }
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
-      throw new MotorConfigurationError("TalonFX motor controllers don't support connected sensors.");
+      var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
+      double output = connected.outputOffset * setpoint;
+
+      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
+          logger, "setting motor output");
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
@@ -148,8 +234,9 @@ public class SuSparkMax extends SuController {
   }
 
   @Override
-  public void follow(SuController other) { 
-    // Techincally, the spark max can follow other motor controllers, but for now we will only allow the following of other
+  public void follow(SuController other) {
+    // Techincally, the spark max can follow other motor controllers, but for now we
+    // will only allow the following of other
     // SparkMaxes for safety.
 
     if (!(other.rawController() instanceof CANSparkMax)) {

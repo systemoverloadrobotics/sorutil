@@ -10,6 +10,7 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
 import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
 public class SuTalonSrx extends SuController {
@@ -102,6 +103,10 @@ public class SuTalonSrx extends SuController {
           talon.setSensorPhase(true);
         }
       }
+
+      if (sensorConfig.source() instanceof ExternalSensorSource) {
+        configureSoftPid();
+      }
     }
   }
 
@@ -113,6 +118,20 @@ public class SuTalonSrx extends SuController {
   @Override
   public void tick() {
     Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
+
+    if (softPidControllerEnabled) {
+      if (softPidControllerMode) {
+        // velocity mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+        double output = softPidController.calculate(current);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      } else {
+        // position mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+        double output = softPidController.calculate(current);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      }
+    }
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -135,14 +154,18 @@ public class SuTalonSrx extends SuController {
     }
     lastSetpoint = setpoint;
     lastMode = mode;
+    softPidControllerEnabled = false;
 
     switch(mode) {
       case PERCENT_OUTPUT:
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
+        break;
       case POSITION:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
+        setPosition(setpoint);
+        break;
       case VELOCITY:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
+        setVelocity(setpoint);
+        break;
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -156,13 +179,20 @@ public class SuTalonSrx extends SuController {
           voltageControlOverrideSet = true;
         }
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
+        break;
     }
   }
 
-  private double positionSetpoint(double setpoint) {
+  private void setPosition(double setpoint) {
     // Using sensor external to the Falcon.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = false;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      double output = softPidController.calculate(current, setpoint);
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource)sensorConfig.source();
@@ -170,16 +200,20 @@ public class SuTalonSrx extends SuController {
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
         double sensorDegrees = connected.outputOffset * setpoint;
         double countsToDegrees = connected.countsPerRev / 360.0;
+        double output = sensorDegrees*countsToDegrees;
 
-        return sensorDegrees * countsToDegrees;
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
+        return;
       }
       
       if (connected.type == SensorConfiguration.ConnectedSensorType.PWM_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_ABSOLUTE) {
         double sensorDegrees = connected.outputOffset * setpoint;
-
         // Map the full range of the rotation to 0-1, assuming that the sensor can't over-rotate.
-        return sensorDegrees / 360.0;
+        double output = sensorDegrees/360.0;
+
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
+        return;
       }
       throw new MotorConfigurationError(
           "unsupported type of connected sensor: " + sensorConfig.source().getClass().getName());
@@ -188,20 +222,29 @@ public class SuTalonSrx extends SuController {
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private double velocitySetpoint(double setpoint) {
+  private void setVelocity(double setpoint) {
     // Using sensor external to the Falcon.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = true;
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      double output = softPidController.calculate(current, setpoint);
+      
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
       if (connected.type == SensorConfiguration.ConnectedSensorType.QUAD_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
         double motorRpm = connected.outputOffset * setpoint;
+        double motorRps = motorRpm / 60.0;
+        double output = (connected.countsPerRev * motorRps) / 10.0;
 
-        return (connected.countsPerRev * motorRpm) / 10.0;
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+        return;
       }
-      
+
       if (connected.type == SensorConfiguration.ConnectedSensorType.PWM_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_ABSOLUTE) {
         throw new MotorConfigurationError(

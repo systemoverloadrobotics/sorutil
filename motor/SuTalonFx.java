@@ -1,12 +1,14 @@
 package frc.sorutil.motor;
 
 import java.util.logging.Logger;
+
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.StatorCurrentLimitConfiguration;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
+
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
@@ -30,10 +32,11 @@ public class SuTalonFx extends SuController {
   private SensorConfiguration sensorConfig;
 
   public SuTalonFx(WPI_TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(talon, motorConfig, sensorConfig, Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)));
+    super(talon, motorConfig, sensorConfig,
+        Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)));
 
     this.talon = talon;
-  } 
+  }
 
   @Override
   public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
@@ -70,7 +73,7 @@ public class SuTalonFx extends SuController {
     talon.setNeutralMode(desiredMode);
 
     double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    if (config.neutralDeadband() != null){
+    if (config.neutralDeadband() != null) {
       neutralDeadband = config.neutralDeadband();
     }
     Errors.handleCtre(talon.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
@@ -85,7 +88,12 @@ public class SuTalonFx extends SuController {
       }
 
       if (sensorConfig.source() instanceof IntegratedSensorSource) {
-        Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor), logger, "configuring sensor to integrated feedback sensor");
+        Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor), logger,
+            "configuring sensor to integrated feedback sensor");
+      }
+
+      if (sensorConfig.source() instanceof ExternalSensorSource) {
+        configureSoftPid();
       }
     }
   }
@@ -101,6 +109,19 @@ public class SuTalonFx extends SuController {
 
     if (talon.hasResetOccurred()) {
 
+    }
+
+    if (softPidControllerEnabled) {
+      double current = 0;
+      if (softPidControllerMode) {
+        // velocity mode
+        current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      } else {
+        // position mode
+        current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      }
+      double output = softPidController.calculate(current);
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
     }
   }
 
@@ -118,20 +139,25 @@ public class SuTalonFx extends SuController {
       lastVoltageCompensation = null;
     }
 
-    // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
+    // Skip updating the motor if the setpoint is the same, this reduces
+    // unneccessary CAN messages.
     if (setpoint == lastSetpoint && mode == lastMode) {
       return;
     }
     lastSetpoint = setpoint;
     lastMode = mode;
+    softPidControllerEnabled = false;
 
-    switch(mode) {
+    switch (mode) {
       case PERCENT_OUTPUT:
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
+        break;
       case POSITION:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
+        setPosition(setpoint);
+        break;
       case VELOCITY:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
+        setVelocity(setpoint);
+        break;
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -145,37 +171,55 @@ public class SuTalonFx extends SuController {
           voltageControlOverrideSet = true;
         }
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
+        break;
     }
   }
 
-  private double positionSetpoint(double setpoint) {
+  private void setPosition(double setpoint) {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double motorDegrees = integrated.outputOffset * setpoint;
-      double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED/360.0;
+      double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED / 360.0;
+      double output = motorDegrees * countsToDegrees;
 
-      return motorDegrees * countsToDegrees;
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
+      return;
     }
     // Using sensor external to the Falcon.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = false;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      double output = softPidController.calculate(current, setpoint);
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private double velocitySetpoint(double setpoint) {
+  private void setVelocity(double setpoint) {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource)sensorConfig.source();
+      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double motorRpm = integrated.outputOffset * setpoint;
+      double motorRps = motorRpm / 60.0;
+      double output = (COUNTS_PER_REVOLUTION_INTEGRATED * motorRps) / 10.0;
 
-      return (COUNTS_PER_REVOLUTION_INTEGRATED * motorRpm) / 10.0;
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+      return;
     }
     // Using sensor external to the Falcon.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = true;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      double output = softPidController.calculate(current, setpoint);
+      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
@@ -187,7 +231,7 @@ public class SuTalonFx extends SuController {
   }
 
   @Override
-  public void follow(SuController other) { 
+  public void follow(SuController other) {
     if (!(other.rawController() instanceof IFollower)) {
       throw new MotorConfigurationError(
           "CTRE motor controllers can only follow other motor controllers from CTRE");
@@ -199,8 +243,9 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      // TODO: once we can confirm the actual state of the sensor source, replace with faster updating call.
-      return talon.getSensorCollection().getIntegratedSensorPosition() / 2048.0 * 360;
+      // TODO: once we can confirm the actual state of the sensor source, replace with
+      // faster updating call.
+      return talon.getSensorCollection().getIntegratedSensorPosition() / COUNTS_PER_REVOLUTION_INTEGRATED * 360.0;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
@@ -211,8 +256,9 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      // TODO: once we can confirm the actual state of the sensor source, replace with faster updating call.
-      return talon.getSensorCollection().getIntegratedSensorVelocity() * 10 * 60.0 / 2048;
+      // TODO: once we can confirm the actual state of the sensor source, replace with
+      // faster updating call.
+      return talon.getSensorCollection().getIntegratedSensorVelocity() * 10.0 * 60.0 / COUNTS_PER_REVOLUTION_INTEGRATED;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();

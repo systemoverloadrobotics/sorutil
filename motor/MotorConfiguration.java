@@ -1,5 +1,16 @@
 package frc.sorutil.motor;
 
+/**
+ * Class that holds meta configuration values for all types of motor
+ * controllers. Using options not supported by a motor controller will result in
+ * an error.
+ * 
+ * <p>
+ * Note that all PID control is currently done in the native units of the motor
+ * controller, and will require adjusting from values calculated. This does not
+ * apply to soft PID controllers, which are implemented with the WPILib values.
+ * </p>
+ */
 public class MotorConfiguration {
 
     // ---- Begin configuration options ----

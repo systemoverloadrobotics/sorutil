@@ -8,6 +8,7 @@ import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
 import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
 public class SuVictorSpx extends SuController {
@@ -71,6 +72,9 @@ public class SuVictorSpx extends SuController {
         throw new MotorConfigurationError(
             "Victor SPX does not supported directly connected sensors, but was configured to use one.");
       }
+      if (sensorConfig.source() instanceof ExternalSensorSource) {
+        configureSoftPid();
+      }
     }
   }
 
@@ -82,6 +86,20 @@ public class SuVictorSpx extends SuController {
   @Override
   public void tick() {
     Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
+
+    if (softPidControllerEnabled) {
+      if (softPidControllerMode) {
+        // velocity mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+        double output = softPidController.calculate(current);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      } else {
+        // position mode
+        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+        double output = softPidController.calculate(current);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      }
+    }
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -104,14 +122,18 @@ public class SuVictorSpx extends SuController {
     }
     lastSetpoint = setpoint;
     lastMode = mode;
+    softPidControllerEnabled = false;
 
     switch (mode) {
       case PERCENT_OUTPUT:
         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
+        break;
       case POSITION:
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, positionSetpoint(setpoint));
+        setPosition(setpoint);
+        break;
       case VELOCITY:
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, velocitySetpoint(setpoint));
+        setVelocity(setpoint);
+        break;
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -125,28 +147,35 @@ public class SuVictorSpx extends SuController {
           voltageControlOverrideSet = true;
         }
         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
+        break;
     }
   }
 
-  private double positionSetpoint(double setpoint) {
-    // Using sensor external to the Falcon.
+  private void setPosition(double setpoint) {
+    // Using sensor external to the Victor.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
-    }
-    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
-      throw new MotorConfigurationError("VictorSPX motor controllers don't support connected sensors.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = false;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      double output = softPidController.calculate(current, setpoint);
+      victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private double velocitySetpoint(double setpoint) {
-    // Using sensor external to the Falcon.
+  private void setVelocity(double setpoint) {
+    // Using sensor external to the Victor.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      throw new MotorConfigurationError("compensated external velocity control is not yet supported.");
-    }
-    if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
-      throw new MotorConfigurationError("VictorSPX motor controllers don't support connected sensors.");
+      softPidControllerEnabled = true;
+      softPidControllerMode = true;
+
+      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      double output = softPidController.calculate(current, setpoint);
+      victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());

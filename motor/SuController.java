@@ -2,6 +2,7 @@ package frc.sorutil.motor;
 
 import java.util.logging.Logger;
 
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 
 public abstract class SuController {
@@ -32,6 +33,13 @@ public abstract class SuController {
   protected final MotorConfiguration config;
   protected final SensorConfiguration sensorConfig;
 
+  protected PIDController softPidController;
+  protected boolean softPidControllerEnabled;
+  /**
+   * softPidControllerMode is true when mode is velocity, false when it's position.
+   */
+  protected boolean softPidControllerMode;
+
   public SuController (MotorController controller, Logger logger) {
     this(controller, new MotorConfiguration(), logger);
   }
@@ -49,6 +57,11 @@ public abstract class SuController {
     this.config = config;
 
     this.configure(config, sensorConfig);
+  }
+
+  protected void configureSoftPid() {
+    softPidController = new PIDController(motorConfig().pidProfile().p(), motorConfig().pidProfile().i(),
+        motorConfig().pidProfile().d());
   }
 
   protected MotorConfiguration motorConfig() {
