@@ -1,38 +1,94 @@
 package frc.sorutil.motor;
 
+import java.util.logging.Logger;
+
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 
-public interface SuController {
-  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig); 
+public abstract class SuController {
+  public static final double DEFAULT_VOLTAGE_COMPENSTAION = 12.5;
 
-  MotorController rawController();
+  public static enum ControllerType {
+    TALON_FX,
+    TALON_SRX,
+    SPARK_MAX,
+    VICTOR_SPX,
+  }
 
-  public void tick();
+  public static enum ControlMode {
+    PERCENT_OUTPUT,
+    POSITION,
+    VELOCITY,
+    VOLTAGE,
+  }
 
-  public void set(SuMotor.ControlMode mode, double setpoint);
+  public static enum IdleMode{
+    BRAKE,
+    COAST,
+  }
+
+  protected final Logger logger;
+
+  protected final MotorController internalController;
+  protected final MotorConfiguration config;
+  protected final SensorConfiguration sensorConfig;
+
+  public SuController (MotorController controller, Logger logger) {
+    this(controller, new MotorConfiguration(), logger);
+  }
+
+  public SuController(MotorController controller, MotorConfiguration config, Logger logger) {
+    this(controller, config, null, logger);
+  }
+
+  public SuController(MotorController controller, MotorConfiguration config, SensorConfiguration sensorConfig, Logger logger) {
+    MotorManager.instance().addMotor(this);
+
+    this.logger = logger;
+    this.sensorConfig = sensorConfig;
+    this.internalController = controller;
+    this.config = config;
+
+    this.configure(config, sensorConfig);
+  }
+
+  protected MotorConfiguration motorConfig() {
+    return config;
+  }
+
+  protected SensorConfiguration sensorConfig() {
+    return sensorConfig;
+  }
+
+  protected abstract void configure(MotorConfiguration config, SensorConfiguration sensorConfig); 
+
+  public abstract MotorController rawController();
+
+  public abstract void tick();
+
+  public abstract void set(ControlMode mode, double setpoint);
 
   /**
    * Stops the motor regardless of output mode.
    */
-  public void stop();
+  public abstract void stop();
 
-  public void follow(SuController other);
+  public abstract void follow(SuController other);
 
   /**
    * Using the SensorConfiguration on this motor, retreive the end effector position in degrees. This will take into
    * account the scaling factor provided in the SensorConfiguration.
    */
-  public double outputPosition();
+  public abstract double outputPosition();
 
   /**
    * Using the SensorConfiguration on this motor, retreive the end effector output velocity in RPM. This will take into
    * account the scaling factor provided in the SensorConfiguration.
    */
-  public double outputVelocity();
+  public abstract double outputVelocity();
 
   /**
    * setSensorPosition will override the current sensor position and update the internal counter to the new position. As
    * with outputPosition, the value is in degrees.
    */
-  public void setSensorPosition(double position);
+  public abstract void setSensorPosition(double position);
 }

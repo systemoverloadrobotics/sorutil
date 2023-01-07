@@ -1,7 +1,6 @@
 package frc.sorutil.motor;
 
 import java.util.HashSet;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class MotorManager extends SubsystemBase{
@@ -10,7 +9,7 @@ public class MotorManager extends SubsystemBase{
     instance = new MotorManager();
   }
 
-  private HashSet<SuMotor> motors = new HashSet<>();
+  private HashSet<SuController> motors = new HashSet<>();
 
   public static MotorManager instance() {
     return instance;
@@ -19,12 +18,12 @@ public class MotorManager extends SubsystemBase{
   // Because this is a subsystem, this method will be called periodically by the command scheduler.
   @Override
   public void periodic() {
-    for (SuMotor motor : motors) {
+    for (SuController motor : motors) {
       motor.tick();
     }
   }
 
-  protected void addMotor(SuMotor motor) {
+  protected void addMotor(SuController motor) {
     motors.add(motor);
   }
 }

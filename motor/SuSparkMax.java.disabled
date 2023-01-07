@@ -6,33 +6,27 @@ import com.revrobotics.CANSparkMax.ControlType;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
-import frc.sorutil.motor.SuMotor.ControlMode;
 
-public class SuSparkMax implements SuController {
+public class SuSparkMax extends SuController {
   private static final double STALL_LIMIT = 30;
   private static final double DEFAULT_CURRENT_LIMIT = 70;
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
-  private final Logger logger;
-
   private final CANSparkMax sparkMax;
 
-  private SuMotor.ControlMode lastMode;
+  private SuController.ControlMode lastMode;
   private double lastSetpoint;
 
   private SensorConfiguration sensorConfig;
 
-  public SuSparkMax(CANSparkMax sparkMax, String name) {
-    int channel = sparkMax.getDeviceId();
-    logger = Logger.getLogger(String.format("SparkMax(%d: %s)", channel, name));
+  public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
+    super(talon, motorConfig, sensorConfig, Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceID(), name)));
 
     this.sparkMax = sparkMax;
   }
 
   @Override
   public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
-    this.sensorConfig = sensorConfig;
-
     Errors.handleRev(sparkMax.restoreFactoryDefaults(), logger, "resetting motor config");
 
     sparkMax.enableVoltageCompensation(12);
@@ -55,7 +49,7 @@ public class SuSparkMax implements SuController {
     Errors.handleRev(sparkMax.setSmartCurrentLimit((int) STALL_LIMIT, (int) limit), logger, "setting current limit");
 
     CANSparkMax.IdleMode desiredMode = CANSparkMax.IdleMode.kCoast;
-    if (config.idleMode() == SuMotor.IdleMode.BRAKE) {
+    if (config.idleMode() == SuController.IdleMode.BRAKE) {
       desiredMode = CANSparkMax.IdleMode.kBrake;
     }
     Errors.handleRev(sparkMax.setIdleMode(desiredMode), logger, "setting idle mode");

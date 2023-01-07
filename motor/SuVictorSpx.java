@@ -1,7 +1,6 @@
 package frc.sorutil.motor;
 
 import java.util.logging.Logger;
-import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
@@ -10,35 +9,26 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
 import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
-import frc.sorutil.motor.SuMotor.IdleMode;
 
-public class SuVictorSpx implements SuController {
+public class SuVictorSpx extends SuController {
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
-  private final Logger logger;
-
   private final WPI_VictorSPX victor;
-  private MotorConfiguration config;
-  private SensorConfiguration sensorConfig;
 
   private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;
 
-  private SuMotor.ControlMode lastMode;
+  private SuController.ControlMode lastMode;
   private double lastSetpoint;
 
-  public SuVictorSpx(WPI_VictorSPX victor, String name) {
-    int channel = victor.getDeviceID();
-    logger = Logger.getLogger(String.format("VictorSPX(%d: %s)", channel, name));
+  public SuVictorSpx(WPI_VictorSPX victor, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
+    super(victor, motorConfig, sensorConfig, Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)));
 
     this.victor = victor;
   }
 
   @Override
   public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
-    this.config = config;
-    this.sensorConfig = sensorConfig;
-
     Errors.handleCtre(victor.configFactoryDefault(), logger, "resetting motor config");
 
     victor.setInverted(config.inverted());
@@ -53,7 +43,7 @@ public class SuVictorSpx implements SuController {
           "Victor SPX initialized with current limit, current limits are NOT SUPPORTED, ignoring instruction.");
     }
 
-    Errors.handleCtre(victor.configVoltageCompSaturation(SuMotor.DEFAULT_VOLTAGE_COMPENSTAION),
+    Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
         logger, "configuring voltage compenstation");
     victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
 
@@ -95,14 +85,14 @@ public class SuVictorSpx implements SuController {
   }
 
   private void restoreDefaultVoltageCompensation() {
-    Errors.handleCtre(victor.configVoltageCompSaturation(SuMotor.DEFAULT_VOLTAGE_COMPENSTAION),
+    Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
         logger, "configuring voltage compenstation");
     victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
   }
 
   @Override
-  public void set(SuMotor.ControlMode mode, double setpoint) {
-    if (voltageControlOverrideSet && mode != SuMotor.ControlMode.VOLTAGE) {
+  public void set(SuController.ControlMode mode, double setpoint) {
+    if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
       restoreDefaultVoltageCompensation();
       voltageControlOverrideSet = false;
       lastVoltageCompensation = null;
@@ -117,11 +107,11 @@ public class SuVictorSpx implements SuController {
 
     switch (mode) {
       case PERCENT_OUTPUT:
-        victor.set(ControlMode.PercentOutput, setpoint);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
       case POSITION:
-        victor.set(ControlMode.Position, setpoint);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, setpoint);
       case VELOCITY:
-        victor.set(ControlMode.Velocity, setpoint);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, setpoint);
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -134,7 +124,7 @@ public class SuVictorSpx implements SuController {
           victor.enableVoltageCompensation(true);
           voltageControlOverrideSet = true;
         }
-        victor.set(ControlMode.PercentOutput, negative ? -1 : 1);
+        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
     }
   }
 

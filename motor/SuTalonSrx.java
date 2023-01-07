@@ -1,7 +1,6 @@
 package frc.sorutil.motor;
 
 import java.util.logging.Logger;
-import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
@@ -12,36 +11,28 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
 import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
-import frc.sorutil.motor.SuMotor.IdleMode;
 
-public class SuTalonSrx implements SuController {
+public class SuTalonSrx extends SuController {
   private static final double DEFAULT_CURRENT_LIMIT = 60;
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
-  private final Logger logger;
-
   private final WPI_TalonSRX talon;
   private MotorConfiguration config;
-  private SensorConfiguration sensorConfig;
 
   private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;
 
-  private SuMotor.ControlMode lastMode;
+  private SuController.ControlMode lastMode;
   private double lastSetpoint;
 
-  public SuTalonSrx(WPI_TalonSRX talon, String name) {
-    int channel = talon.getDeviceID();
-    logger = Logger.getLogger(String.format("TalonSRX(%d: %s)", channel, name));
+  public SuTalonSrx(WPI_TalonSRX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
+    super(talon, motorConfig, sensorConfig, Logger.getLogger(String.format("TalonSRX(%d: %s)", talon.getDeviceID(), name)));
 
     this.talon = talon;
   }
 
   @Override
   public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
-    this.config = config;
-    this.sensorConfig = sensorConfig;
-
     Errors.handleCtre(talon.clearMotionProfileHasUnderrun(), logger, "clearing motion profile");
     Errors.handleCtre(talon.clearMotionProfileTrajectories(), logger, "clearing motion profile trajectories");
 
@@ -125,14 +116,14 @@ public class SuTalonSrx implements SuController {
   }
 
   private void restoreDefaultVoltageCompensation() {
-    Errors.handleCtre(talon.configVoltageCompSaturation(SuMotor.DEFAULT_VOLTAGE_COMPENSTAION),
+    Errors.handleCtre(talon.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
         logger, "configuring voltage compenstation");
     talon.enableVoltageCompensation(config.voltageCompenstationEnabled());
   }
 
   @Override
-  public void set(SuMotor.ControlMode mode, double setpoint) {
-    if (voltageControlOverrideSet && mode != SuMotor.ControlMode.VOLTAGE) {
+  public void set(SuController.ControlMode mode, double setpoint) {
+    if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
       restoreDefaultVoltageCompensation();
       voltageControlOverrideSet = false;
       lastVoltageCompensation = null;
@@ -147,11 +138,11 @@ public class SuTalonSrx implements SuController {
 
     switch(mode) {
       case PERCENT_OUTPUT:
-        talon.set(ControlMode.PercentOutput, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
       case POSITION:
-        talon.set(ControlMode.Position, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, setpoint);
       case VELOCITY:
-        talon.set(ControlMode.Velocity, setpoint);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, setpoint);
       case VOLTAGE:
         boolean negative = setpoint < 0;
         double abs = Math.abs(setpoint);
@@ -164,7 +155,7 @@ public class SuTalonSrx implements SuController {
           talon.enableVoltageCompensation(true);
           voltageControlOverrideSet = true;
         }
-        talon.set(ControlMode.PercentOutput, negative ? -1 : 1);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
     }
   }
 

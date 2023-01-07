@@ -8,7 +8,7 @@ public class MotorConfiguration {
      */
     private Double currentLimit = null;
 
-    private SuMotor.IdleMode idleMode = SuMotor.IdleMode.COAST;
+    private SuController.IdleMode idleMode = SuController.IdleMode.COAST;
 
     private Double neutralDeadband = null;
 
@@ -34,7 +34,7 @@ public class MotorConfiguration {
       currentLimit = limit;
     }
     
-    public void setIdleMode(SuMotor.IdleMode mode) {
+    public void setIdleMode(SuController.IdleMode mode) {
       this.idleMode = mode;
     }
 
@@ -58,7 +58,7 @@ public class MotorConfiguration {
       return currentLimit;
     }
     
-    public SuMotor.IdleMode idleMode() {
+    public SuController.IdleMode idleMode() {
       return idleMode;
     }
 
