@@ -20,7 +20,7 @@ public class SuSparkMax extends SuController {
   private SensorConfiguration sensorConfig;
 
   public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(talon, motorConfig, sensorConfig, Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceID(), name)));
+    super(sparkMax, motorConfig, sensorConfig, Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceID(), name)));
 
     this.sparkMax = sparkMax;
   }
