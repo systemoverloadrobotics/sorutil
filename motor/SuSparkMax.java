@@ -4,9 +4,8 @@ import java.util.logging.Logger;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.MotorFeedbackSensor;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SparkMaxAnalogSensor;
+import com.revrobotics.SparkMaxAbsoluteEncoder;
 import com.revrobotics.CANSparkMax.ControlType;
-import com.revrobotics.SparkMaxAnalogSensor.Mode;
 
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import frc.sorutil.Errors;
@@ -18,6 +17,7 @@ public class SuSparkMax extends SuController {
   private static final double STALL_LIMIT = 30;
   private static final double DEFAULT_CURRENT_LIMIT = 70;
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
+  private static final int ANALOG_SAMPLE_DEPTH = 16;
 
   private final CANSparkMax sparkMax;
 
@@ -25,7 +25,7 @@ public class SuSparkMax extends SuController {
   private double lastSetpoint;
   
   // Privately store references to the connected sensor objects that Rev uses.
-  private SparkMaxAnalogSensor analogSensor;
+  private SparkMaxAbsoluteEncoder analogSensor;
   private RelativeEncoder digitalSensor;
 
   public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig,
@@ -91,7 +91,9 @@ public class SuSparkMax extends SuController {
           case MAG_ENCODER_ABSOLUTE:
             // fallthrough
           case PWM_ENCODER:
-            var analog = sparkMax.getAnalog(Mode.kAbsolute);
+            //var analog = sparkMax.getAnalog(Mode.kAbsolute);
+            var analog = sparkMax.getAbsoluteEncoder(SparkMaxAbsoluteEncoder.Type.kDutyCycle);
+            analog.setAverageDepth(ANALOG_SAMPLE_DEPTH);
             analogSensor = analog;
             sensor = analog;
             break;
