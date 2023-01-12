@@ -98,4 +98,24 @@ public class SorMath {
     }
     return a * a;
   }
+
+  /**
+   * Calculate revolutions per minute, given a wheel size and a desired speed in
+   * meters per second.
+   * 
+   * @return revolutions per minute that the given wheel would be spinning
+   */
+  public static double speedMetersPerSecondToRevsPerMinute(double diameterWheelSize, double metersPerSecond) {
+    return (metersPerSecond * 60) / (diameterWheelSize * Math.PI * 0.0254); 
+  }
+
+  /**
+   * Calculate distance travelled by a given wheel if it rotates a certain number
+   * of degrees.
+   * 
+   * @return distance travelled by the wheel specified by diameter
+   */
+  public static double degreesToMeters(double diameterWheelSize, double degrees) {
+    return (degrees / 360) * (4 * Math.PI * 0.0254); 
+  }
 }
