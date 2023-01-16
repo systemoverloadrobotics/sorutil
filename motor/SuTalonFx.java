@@ -36,10 +36,11 @@ public class SuTalonFx extends SuController {
         Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)));
 
     this.talon = talon;
+    configure(motorConfig, sensorConfig);
   }
 
   @Override
-  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
+  protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     Errors.handleCtre(talon.clearMotionProfileHasUnderrun(), logger, "clearing motion profile");
     Errors.handleCtre(talon.clearMotionProfileTrajectories(), logger, "clearing motion profile trajectories");
 

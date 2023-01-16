@@ -55,8 +55,6 @@ public abstract class SuController {
     this.sensorConfig = sensorConfig;
     this.internalController = controller;
     this.config = config;
-
-    this.configure(config, sensorConfig);
   }
 
   protected void configureSoftPid() {

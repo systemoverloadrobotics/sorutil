@@ -34,10 +34,11 @@ public class SuSparkMax extends SuController {
         Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceId(), name)));
 
     this.sparkMax = sparkMax;
+    configure(motorConfig, sensorConfig);
   }
 
   @Override
-  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
+  protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     Errors.handleRev(sparkMax.restoreFactoryDefaults(), logger, "resetting motor config");
 
     sparkMax.enableVoltageCompensation(12);

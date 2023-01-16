@@ -26,10 +26,11 @@ public class SuVictorSpx extends SuController {
     super(victor, motorConfig, sensorConfig, Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)));
 
     this.victor = victor;
+    configure(motorConfig, sensorConfig);
   }
 
   @Override
-  public void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
+  protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     Errors.handleCtre(victor.configFactoryDefault(), logger, "resetting motor config");
 
     victor.setInverted(config.inverted());
