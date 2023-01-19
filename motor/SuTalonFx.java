@@ -21,7 +21,6 @@ public class SuTalonFx extends SuController {
   private static final double COUNTS_PER_REVOLUTION_INTEGRATED = 2048;
 
   private final WPI_TalonFX talon;
-  private MotorConfiguration config;
 
   private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;

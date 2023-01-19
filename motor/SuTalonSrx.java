@@ -18,7 +18,6 @@ public class SuTalonSrx extends SuController {
   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
   private final WPI_TalonSRX talon;
-  private MotorConfiguration config;
 
   private boolean voltageControlOverrideSet = false;
   private Double lastVoltageCompensation = null;
