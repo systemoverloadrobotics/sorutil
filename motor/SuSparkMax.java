@@ -3,6 +3,7 @@ package frc.sorutil.motor;
 import java.util.logging.Logger;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.MotorFeedbackSensor;
+import com.revrobotics.REVLibError;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxAbsoluteEncoder;
 import com.revrobotics.CANSparkMax.ControlType;
@@ -41,10 +42,13 @@ public class SuSparkMax extends SuController {
   protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
     Errors.handleRev(sparkMax.restoreFactoryDefaults(), logger, "resetting motor config");
 
-    sparkMax.enableVoltageCompensation(12);
-    if (!config.voltageCompenstationEnabled()) {
-      sparkMax.disableVoltageCompensation();
-    }
+    // This is disabled due to weird interactions on the SparkMax that seems to
+    // affect position control.
+
+    // sparkMax.enableVoltageCompensation(12);
+    // if (!config.voltageCompenstationEnabled()) {
+    // sparkMax.disableVoltageCompensation();
+    // }
 
     sparkMax.setInverted(config.inverted());
 
@@ -66,15 +70,14 @@ public class SuSparkMax extends SuController {
     }
     Errors.handleRev(sparkMax.setIdleMode(desiredMode), logger, "setting idle mode");
 
-    double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    if (config.neutralDeadband() != null) {
-      neutralDeadband = config.neutralDeadband();
-    }
+    // double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
+    // if (config.neutralDeadband() != null) {
+    //   neutralDeadband = config.neutralDeadband();
+    // }
 
     // TODO: this should be improved to support multiple PID controllers.
-    Errors.handleRev(sparkMax.getPIDController().setOutputRange(neutralDeadband, config.maxOutput()), logger,
+    Errors.handleRev(sparkMax.getPIDController().setOutputRange(-config.maxOutput(), config.maxOutput()), logger,
         "setting neutral deadband");
-
 
     if (sensorConfig != null) {
       if (sensorConfig.source() instanceof ConnectedSensorSource) {
@@ -86,6 +89,7 @@ public class SuSparkMax extends SuController {
             // fallthrough
           case MAG_ENCODER_RELATIVE:
             var alt = sparkMax.getAlternateEncoder(connected.countsPerRev);
+            alt.setPositionConversionFactor(360); // Convert revolutions to degrees
             digitalSensor = alt;
             sensor = alt;
             break;
@@ -95,6 +99,14 @@ public class SuSparkMax extends SuController {
             //var analog = sparkMax.getAnalog(Mode.kAbsolute);
             var analog = sparkMax.getAbsoluteEncoder(SparkMaxAbsoluteEncoder.Type.kDutyCycle);
             analog.setAverageDepth(ANALOG_SAMPLE_DEPTH);
+            analog.setPositionConversionFactor(360); // Convert revolutions to degrees
+            analog.setAverageDepth(32);
+
+            // Configure the sensor to continuously rotate through 360 degrees.
+            sparkMax.getPIDController().setPositionPIDWrappingEnabled(true);
+            sparkMax.getPIDController().setPositionPIDWrappingMinInput(0);
+            sparkMax.getPIDController().setPositionPIDWrappingMaxInput(360);
+            
             analogSensor = analog;
             sensor = analog;
             break;
@@ -115,6 +127,7 @@ public class SuSparkMax extends SuController {
       if (sensorConfig.source() instanceof IntegratedSensorSource) {
         Errors.handleRev(sparkMax.getPIDController().setFeedbackDevice(sparkMax.getEncoder()), logger,
             "setting feedback device to integral device");
+        sparkMax.getEncoder().setPositionConversionFactor(360); // Convert revolutions to degrees
       }
     }
 
@@ -126,9 +139,20 @@ public class SuSparkMax extends SuController {
     return sparkMax;
   }
 
+  boolean canDisconnectGuard = false;
+
   @Override
   public void tick() {
-    Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
+    // Only print CAN disconnect messages once
+    if (sparkMax.getLastError() == REVLibError.kCANDisconnected) {
+      if (!canDisconnectGuard) {
+        canDisconnectGuard = true;
+        Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
+      }
+    } else {
+      Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
+    }
+    sparkMax.clearFaults();
 
     if (softPidControllerEnabled) {
       if (softPidControllerMode) {
@@ -178,8 +202,7 @@ public class SuSparkMax extends SuController {
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double motorDegrees = integrated.outputOffset * setpoint;
-      double revsToDegrees = 1 / 360.0;
-      double output = motorDegrees * revsToDegrees;
+      double output = motorDegrees;
 
       Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
           logger, "setting motor output");
@@ -198,8 +221,7 @@ public class SuSparkMax extends SuController {
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
       double motorDegrees = connected.outputOffset * setpoint;
-      double revsToDegrees = 1 / 360.0;
-      double output = motorDegrees * revsToDegrees;
+      double output = motorDegrees;
 
       Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
           logger, "setting motor output");
@@ -264,7 +286,7 @@ public class SuSparkMax extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      return sparkMax.getEncoder().getPosition() * 360.0;
+      return sparkMax.getEncoder().getPosition();
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
       var type = ((ConnectedSensorSource) sensorConfig.source()).type;
@@ -272,11 +294,11 @@ public class SuSparkMax extends SuController {
         case QUAD_ENCODER:
           // fallthrough
         case MAG_ENCODER_RELATIVE:
-          return digitalSensor.getPosition() * 360.0;
+          return digitalSensor.getPosition();
         case PWM_ENCODER:
           // fallthrough
         case MAG_ENCODER_ABSOLUTE:
-          return analogSensor.getPosition() * 360.0;
+          return analogSensor.getPosition();
         default:
           throw new MotorConfigurationError("unknown sensor type: " + type.toString());
       }
@@ -324,7 +346,7 @@ public class SuSparkMax extends SuController {
         case QUAD_ENCODER:
           // fallthrough
         case MAG_ENCODER_RELATIVE:
-          digitalSensor.setPosition(position / 360.0);
+          digitalSensor.setPosition(position);
           break;
         case PWM_ENCODER:
           // fallthrough
