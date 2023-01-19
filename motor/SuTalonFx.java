@@ -78,6 +78,8 @@ public class SuTalonFx extends SuController {
 
     Errors.handleCtre(talon.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
     Errors.handleCtre(talon.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
+    Errors.handleCtre(talon.configNominalOutputReverse(0), logger, "configuring nominal output");
+    Errors.handleCtre(talon.configNominalOutputForward(0), logger, "configuring nominal output");
 
     if (sensorConfig != null) {
       if (sensorConfig.source() instanceof ConnectedSensorSource) {
@@ -86,7 +88,7 @@ public class SuTalonFx extends SuController {
       }
 
       if (sensorConfig.source() instanceof IntegratedSensorSource) {
-        Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor), logger,
+        Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor, 0, 100), logger,
             "configuring sensor to integrated feedback sensor");
       }
 
