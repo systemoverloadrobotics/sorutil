@@ -28,8 +28,6 @@ public class SuTalonFx extends SuController {
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
 
-  private SensorConfiguration sensorConfig;
-
   public SuTalonFx(WPI_TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
     super(talon, motorConfig, sensorConfig,
         Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)));
