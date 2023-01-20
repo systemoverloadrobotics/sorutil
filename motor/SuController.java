@@ -1,7 +1,5 @@
 package frc.sorutil.motor;
 
-import java.util.logging.Logger;
-
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 
@@ -27,11 +25,14 @@ public abstract class SuController {
     COAST,
   }
 
-  protected final Logger logger;
+  protected final java.util.logging.Logger logger;
+  protected final org.littletonrobotics.junction.Logger aLogger;
 
   protected final MotorController internalController;
   protected final MotorConfiguration config;
   protected final SensorConfiguration sensorConfig;
+
+  protected final String controllerName;
 
   protected PIDController softPidController;
   protected boolean softPidControllerEnabled;
@@ -40,21 +41,26 @@ public abstract class SuController {
    */
   protected boolean softPidControllerMode;
 
-  public SuController (MotorController controller, Logger logger) {
-    this(controller, new MotorConfiguration(), logger);
+  public SuController (MotorController controller, java.util.logging.Logger logger, String name) {
+    this(controller, new MotorConfiguration(), logger, name);
   }
 
-  public SuController(MotorController controller, MotorConfiguration config, Logger logger) {
-    this(controller, config, null, logger);
+  public SuController(MotorController controller, MotorConfiguration config, java.util.logging.Logger logger, String name) {
+    this(controller, config, null, logger, name);
   }
 
-  public SuController(MotorController controller, MotorConfiguration config, SensorConfiguration sensorConfig, Logger logger) {
+  public SuController(MotorController controller, MotorConfiguration config, SensorConfiguration sensorConfig,
+      java.util.logging.Logger logger, String name) {
     MotorManager.instance().addMotor(this);
 
     this.logger = logger;
     this.sensorConfig = sensorConfig;
     this.internalController = controller;
     this.config = config;
+
+    this.aLogger = org.littletonrobotics.junction.Logger.getInstance();
+
+    this.controllerName = name.replace(" ", "");
   }
 
   protected void configureSoftPid() {

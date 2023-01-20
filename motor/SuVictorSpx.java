@@ -1,6 +1,6 @@
 package frc.sorutil.motor;
 
-import java.util.logging.Logger;
+import com.ctre.phoenix.ErrorCode;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
@@ -23,9 +23,12 @@ public class SuVictorSpx extends SuController {
   private double lastSetpoint;
 
   public SuVictorSpx(WPI_VictorSPX victor, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(victor, motorConfig, sensorConfig, Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)));
+    super(victor, motorConfig, sensorConfig,
+        java.util.logging.Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)), name);
 
     this.victor = victor;
+    aLogger.recordOutput(controllerName + "ID", victor.getDeviceID());
+
     configure(motorConfig, sensorConfig);
   }
 
@@ -84,9 +87,15 @@ public class SuVictorSpx extends SuController {
     return victor;
   }
 
+  // Record the last log value to prevent log flooding.
+  ErrorCode lastCode = ErrorCode.OK;
+
   @Override
   public void tick() {
-    Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
+    if (lastCode != victor.getLastError()) {
+      Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
+      lastCode = victor.getLastError();
+    }
 
     if (softPidControllerEnabled) {
       if (softPidControllerMode) {

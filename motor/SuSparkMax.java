@@ -1,6 +1,5 @@
 package frc.sorutil.motor;
 
-import java.util.logging.Logger;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.MotorFeedbackSensor;
 import com.revrobotics.REVLibError;
@@ -17,7 +16,6 @@ import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 public class SuSparkMax extends SuController {
   private static final double STALL_LIMIT = 30;
   private static final double DEFAULT_CURRENT_LIMIT = 70;
-  private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
   private static final int ANALOG_SAMPLE_DEPTH = 16;
 
   private final CANSparkMax sparkMax;
@@ -32,9 +30,11 @@ public class SuSparkMax extends SuController {
   public SuSparkMax(CANSparkMax sparkMax, String name, MotorConfiguration motorConfig,
       SensorConfiguration sensorConfig) {
     super(sparkMax, motorConfig, sensorConfig,
-        Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceId(), name)));
+        java.util.logging.Logger.getLogger(String.format("SparkMAX(%d: %s)", sparkMax.getDeviceId(), name)), name);
 
     this.sparkMax = sparkMax;
+
+    aLogger.recordOutput(controllerName + "ID", sparkMax.getDeviceId());
     configure(motorConfig, sensorConfig);
   }
 
@@ -69,11 +69,6 @@ public class SuSparkMax extends SuController {
       desiredMode = CANSparkMax.IdleMode.kBrake;
     }
     Errors.handleRev(sparkMax.setIdleMode(desiredMode), logger, "setting idle mode");
-
-    // double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    // if (config.neutralDeadband() != null) {
-    //   neutralDeadband = config.neutralDeadband();
-    // }
 
     // TODO: this should be improved to support multiple PID controllers.
     Errors.handleRev(sparkMax.getPIDController().setOutputRange(-config.maxOutput(), config.maxOutput()), logger,

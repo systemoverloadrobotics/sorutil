@@ -1,7 +1,6 @@
 package frc.sorutil.motor;
 
-import java.util.logging.Logger;
-
+import com.ctre.phoenix.ErrorCode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
@@ -30,9 +29,11 @@ public class SuTalonFx extends SuController {
 
   public SuTalonFx(WPI_TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
     super(talon, motorConfig, sensorConfig,
-        Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)));
+        java.util.logging.Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)), name);
 
     this.talon = talon;
+    aLogger.recordOutput(controllerName + "ID", talon.getDeviceID());
+
     configure(motorConfig, sensorConfig);
   }
 
@@ -103,9 +104,15 @@ public class SuTalonFx extends SuController {
     return talon;
   }
 
+  // Record the last log value to prevent log flooding.
+  ErrorCode lastCode = ErrorCode.OK;
+
   @Override
   public void tick() {
-    Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
+    if (lastCode != talon.getLastError()) {
+      Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
+      lastCode = talon.getLastError();
+    }
 
     if (talon.hasResetOccurred()) {
 
