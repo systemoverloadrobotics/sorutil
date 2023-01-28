@@ -34,9 +34,9 @@ public class SuSparkMax extends SuController {
 
     this.sparkMax = sparkMax;
 
-    aLogger.recordOutput(controllerName + "ID", sparkMax.getDeviceId());
     configure(motorConfig, sensorConfig);
     initializeLogNames();
+    aLogger.recordOutput(loggerPrefix + "ID", sparkMax.getDeviceId());
   }
 
   @Override

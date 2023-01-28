@@ -32,10 +32,10 @@ public class SuTalonFx extends SuController {
         java.util.logging.Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)), name);
 
     this.talon = talon;
-    aLogger.recordOutput(controllerName + "ID", talon.getDeviceID());
 
     configure(motorConfig, sensorConfig);
     initializeLogNames();
+    aLogger.recordOutput(loggerPrefix + "ID", talon.getDeviceID());
   }
 
   @Override

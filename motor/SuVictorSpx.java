@@ -27,10 +27,10 @@ public class SuVictorSpx extends SuController {
         java.util.logging.Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)), name);
 
     this.victor = victor;
-    aLogger.recordOutput(controllerName + "ID", victor.getDeviceID());
 
     configure(motorConfig, sensorConfig);
     initializeLogNames();
+    aLogger.recordOutput(loggerPrefix + "ID", victor.getDeviceID());
   }
 
   @Override
