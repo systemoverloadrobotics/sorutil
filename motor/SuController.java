@@ -33,6 +33,7 @@ public abstract class SuController {
   protected final SensorConfiguration sensorConfig;
 
   protected final String controllerName;
+  protected final String loggerPrefix;
 
   protected PIDController softPidController;
   protected boolean softPidControllerEnabled;
@@ -61,6 +62,25 @@ public abstract class SuController {
     this.aLogger = org.littletonrobotics.junction.Logger.getInstance();
 
     this.controllerName = name.replace(" ", "");
+    this.loggerPrefix = "motors/" + controllerName + "/";
+
+    logMotorConfiguration();
+    initializeLogNames();
+  }
+
+  private void logMotorConfiguration() {
+    aLogger.recordOutput(loggerPrefix + "VoltageCompenstation", config.voltageCompenstationEnabled());
+    // If this shows up as 0/NULL in the log, that means default.
+    aLogger.recordOutput(loggerPrefix + "CurrentLimit", config.currentLimit() == null ? 0 : config.currentLimit());
+    aLogger.recordOutput(loggerPrefix + "IdleMode", config.idleMode().toString());
+    aLogger.recordOutput(loggerPrefix + "Inverted", config.inverted());
+    aLogger.recordOutput(loggerPrefix + "MaxOutput", config.maxOutput());
+
+    aLogger.recordOutput(loggerPrefix + "kP", config.pidProfile().p());
+    aLogger.recordOutput(loggerPrefix + "kI", config.pidProfile().i());
+    aLogger.recordOutput(loggerPrefix + "kD", config.pidProfile().d());
+
+    aLogger.recordOutput(loggerPrefix + "SensorType", sensorConfig.source().getClass().getName());
   }
 
   protected void configureSoftPid() {
@@ -79,8 +99,6 @@ public abstract class SuController {
   protected abstract void configure(MotorConfiguration config, SensorConfiguration sensorConfig); 
 
   public abstract MotorController rawController();
-
-  public abstract void tick();
 
   /**
    * Set the motor output based on a control mode to a given setpoint. The
@@ -128,9 +146,40 @@ public abstract class SuController {
    */
   public abstract double outputVelocity();
 
+  /** 
+   * Returns the last setpoint that the motor was set to, in the units of the library (Volts, RPM, degrees)
+   */
+  public abstract double currentSetpoint();
+
+  /**
+   * Returns the last setpoint's control mode.
+   */
+  public abstract ControlMode currentControlMode();
+
   /**
    * setSensorPosition will override the current sensor position and update the internal counter to the new position. As
    * with outputPosition, the value is in degrees.
    */
   public abstract void setSensorPosition(double position);
+
+  // ------ Begin logged value names -----
+  private String currentSetpointName;
+  private String controlModeName;
+  private String outputPositionName;
+  private String outputVelocityName;
+  // ------- End logged value names ------
+
+  private void initializeLogNames() {
+    currentSetpointName = loggerPrefix + "Setpoint";
+    controlModeName = loggerPrefix + "ControlMode";
+    outputPositionName = loggerPrefix + "OutputDegrees";
+    outputVelocityName = loggerPrefix + "OutputRPM";
+  }
+
+  public void tick() {
+    aLogger.recordOutput(currentSetpointName, currentSetpoint());
+    aLogger.recordOutput(controlModeName, currentControlMode() == null ? "N/A" : currentControlMode().toString());
+    aLogger.recordOutput(outputPositionName, outputPosition());
+    aLogger.recordOutput(outputVelocityName, outputVelocity());
+  }
 }

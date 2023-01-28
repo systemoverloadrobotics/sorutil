@@ -30,6 +30,7 @@ public class SuVictorSpx extends SuController {
     aLogger.recordOutput(controllerName + "ID", victor.getDeviceID());
 
     configure(motorConfig, sensorConfig);
+    initializeLogNames();
   }
 
   @Override
@@ -92,6 +93,8 @@ public class SuVictorSpx extends SuController {
 
   @Override
   public void tick() {
+    super.tick();
+
     if (lastCode != victor.getLastError()) {
       Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
       lastCode = victor.getLastError();
@@ -110,6 +113,8 @@ public class SuVictorSpx extends SuController {
         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
       }
     }
+
+    recordLogs();
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -194,6 +199,9 @@ public class SuVictorSpx extends SuController {
   @Override
   public void stop() {
     victor.stopMotor();
+
+    lastSetpoint = 0;
+    lastMode = null;
   }
 
   @Override
@@ -227,5 +235,42 @@ public class SuVictorSpx extends SuController {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
     }
+  }
+
+  @Override
+  public double currentSetpoint() {
+    return lastSetpoint;
+  }
+
+  @Override
+  public ControlMode currentControlMode() {
+    return lastMode;
+  }
+
+  // ------ Begin logged value names -----
+  private String inputVoltageName;
+  private String outputVoltageName;
+  private String lastErrorName;
+  private String controllerTemperatureName;
+  private String hasResetName;
+  private String motorOutputName;
+  // ------- End logged value names ------
+
+  private void initializeLogNames() {
+    inputVoltageName = loggerPrefix + "InputVoltage";
+    outputVoltageName = loggerPrefix + "OutputVoltage";
+    lastErrorName = loggerPrefix + "LastError";
+    controllerTemperatureName = loggerPrefix + "ControllerTemperature";
+    hasResetName = loggerPrefix + "HasResetOccurred";
+    motorOutputName = loggerPrefix + "MotorOutputPercent";
+  }
+
+  private void recordLogs() {
+    aLogger.recordOutput(inputVoltageName, victor.getBusVoltage());
+    aLogger.recordOutput(outputVoltageName, victor.getMotorOutputVoltage());
+    aLogger.recordOutput(lastErrorName, victor.getLastError().value);
+    aLogger.recordOutput(controllerTemperatureName, victor.getTemperature());
+    aLogger.recordOutput(hasResetName, victor.hasResetOccurred());
+    aLogger.recordOutput(motorOutputName, victor.getMotorOutputPercent());
   }
 }

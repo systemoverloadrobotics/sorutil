@@ -36,6 +36,7 @@ public class SuSparkMax extends SuController {
 
     aLogger.recordOutput(controllerName + "ID", sparkMax.getDeviceId());
     configure(motorConfig, sensorConfig);
+    initializeLogNames();
   }
 
   @Override
@@ -123,6 +124,7 @@ public class SuSparkMax extends SuController {
         Errors.handleRev(sparkMax.getPIDController().setFeedbackDevice(sparkMax.getEncoder()), logger,
             "setting feedback device to integral device");
         sparkMax.getEncoder().setPositionConversionFactor(360); // Convert revolutions to degrees
+        sparkMax.getEncoder().setVelocityConversionFactor(1);
       }
     }
 
@@ -138,6 +140,8 @@ public class SuSparkMax extends SuController {
 
   @Override
   public void tick() {
+    super.tick();
+
     // Only print CAN disconnect messages once
     if (sparkMax.getLastError() == REVLibError.kCANDisconnected) {
       if (!canDisconnectGuard) {
@@ -162,6 +166,8 @@ public class SuSparkMax extends SuController {
         sparkMax.set(output);
       }
     }
+
+    recordLogs();
   }
 
   @Override
@@ -261,6 +267,8 @@ public class SuSparkMax extends SuController {
   @Override
   public void stop() {
     sparkMax.stopMotor();
+    lastSetpoint = 0;
+    lastMode = null;
   }
 
   @Override
@@ -351,5 +359,36 @@ public class SuSparkMax extends SuController {
           throw new MotorConfigurationError("unknown sensor type: " + type.toString());
       }
     }
+  }
+
+  @Override
+  public double currentSetpoint() {
+    return lastSetpoint;
+  }
+
+  @Override
+  public ControlMode currentControlMode() {
+    return lastMode;
+  }
+
+  // ------ Begin logged value names -----
+  private String inputVoltageName;
+  private String supplyCurrentName;
+  private String motorTemperatureName;
+  private String motorOutputName;
+  // ------- End logged value names ------
+
+  private void initializeLogNames() {
+    inputVoltageName = loggerPrefix + "InputVoltage";
+    supplyCurrentName = loggerPrefix + "SupplyCurrent";
+    motorTemperatureName = loggerPrefix + "MotorTemperature";
+    motorOutputName = loggerPrefix + "MotorOutputPercent";
+  }
+
+  private void recordLogs() {
+    aLogger.recordOutput(inputVoltageName, sparkMax.getBusVoltage());
+    aLogger.recordOutput(motorOutputName, sparkMax.getAppliedOutput());
+    aLogger.recordOutput(supplyCurrentName, sparkMax.getOutputCurrent());
+    aLogger.recordOutput(motorTemperatureName, sparkMax.getMotorTemperature());
   }
 }

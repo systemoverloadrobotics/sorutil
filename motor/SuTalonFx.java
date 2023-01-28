@@ -35,6 +35,7 @@ public class SuTalonFx extends SuController {
     aLogger.recordOutput(controllerName + "ID", talon.getDeviceID());
 
     configure(motorConfig, sensorConfig);
+    initializeLogNames();
   }
 
   @Override
@@ -109,6 +110,8 @@ public class SuTalonFx extends SuController {
 
   @Override
   public void tick() {
+    super.tick();
+
     if (lastCode != talon.getLastError()) {
       Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
       lastCode = talon.getLastError();
@@ -130,6 +133,8 @@ public class SuTalonFx extends SuController {
       double output = softPidController.calculate(current);
       talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
     }
+
+    recordLogs();
   }
 
   private void restoreDefaultVoltageCompensation() {
@@ -235,6 +240,9 @@ public class SuTalonFx extends SuController {
   @Override
   public void stop() {
     talon.stopMotor();
+
+    lastMode = null;
+    lastSetpoint = 0;
   }
 
   @Override
@@ -277,6 +285,61 @@ public class SuTalonFx extends SuController {
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+    }
+  }
+
+  @Override
+  public double currentSetpoint() {
+    return lastSetpoint;
+  }
+
+  @Override
+  public ControlMode currentControlMode() {
+    return lastMode;
+  }
+
+  // ------ Begin logged value names -----
+  private String inputVoltageName;
+  private String outputVoltageName;
+  private String supplyCurrentName;
+  private String lastErrorName;
+  private String selectedSensorPositionName;
+  private String selectedSensorVelocityName;
+  private String controllerTemperatureName;
+  private String hasResetName;
+  private String closedLoopTargetName;
+  private String closedLoopErrorName;
+  private String motorOutputName;
+  // ------- End logged value names ------
+
+  private void initializeLogNames() {
+    inputVoltageName = loggerPrefix + "InputVoltage";
+    outputVoltageName = loggerPrefix + "OutputVoltage";
+    supplyCurrentName = loggerPrefix + "SupplyCurrent";
+    lastErrorName = loggerPrefix + "LastError";
+    selectedSensorPositionName = loggerPrefix + "SelectedSensorPosition";
+    selectedSensorVelocityName = loggerPrefix + "SelectedSensorVelocity";
+    controllerTemperatureName = loggerPrefix + "ControllerTemperature";
+    hasResetName = loggerPrefix + "HasResetOccurred";
+    closedLoopTargetName = loggerPrefix + "ClosedLoopTarget";
+    closedLoopErrorName = loggerPrefix + "ClosedLoopError";
+    motorOutputName = loggerPrefix + "MotorOutputPercent";
+  }
+
+  private void recordLogs() {
+    aLogger.recordOutput(inputVoltageName, talon.getBusVoltage());
+    aLogger.recordOutput(outputVoltageName, talon.getMotorOutputVoltage());
+    aLogger.recordOutput(supplyCurrentName, talon.getSupplyCurrent());
+    aLogger.recordOutput(lastErrorName, talon.getLastError().value);
+    aLogger.recordOutput(selectedSensorPositionName, talon.getSelectedSensorPosition());
+    aLogger.recordOutput(selectedSensorVelocityName, talon.getSelectedSensorVelocity());
+    aLogger.recordOutput(controllerTemperatureName, talon.getTemperature());
+    aLogger.recordOutput(hasResetName, talon.hasResetOccurred());
+    aLogger.recordOutput(motorOutputName, talon.getMotorOutputPercent());
+
+    if (lastMode == ControlMode.POSITION || lastMode == ControlMode.VELOCITY) {
+      aLogger.recordOutput(closedLoopTargetName, talon.getClosedLoopTarget());
+      aLogger.recordOutput(closedLoopErrorName, talon.getClosedLoopError());
     }
   }
 }
