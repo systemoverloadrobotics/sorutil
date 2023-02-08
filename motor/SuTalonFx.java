@@ -1,6 +1,7 @@
 package frc.sorutil.motor;
 
 import com.ctre.phoenix.ErrorCode;
+import com.ctre.phoenix.motorcontrol.DemandType;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.IFollower;
 import com.ctre.phoenix.motorcontrol.IMotorController;
@@ -9,6 +10,7 @@ import com.ctre.phoenix.motorcontrol.StatorCurrentLimitConfiguration;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
 
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+import frc.robot.Constants;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
 import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
@@ -145,6 +147,11 @@ public class SuTalonFx extends SuController {
 
   @Override
   public void set(SuController.ControlMode mode, double setpoint) {
+    set(mode, setpoint, 0);
+  }
+
+  @Override
+  public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
     if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
       restoreDefaultVoltageCompensation();
       voltageControlOverrideSet = false;
@@ -165,10 +172,10 @@ public class SuTalonFx extends SuController {
         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
         break;
       case POSITION:
-        setPosition(setpoint);
+        setPosition(setpoint, arbFfVolts);
         break;
       case VELOCITY:
-        setVelocity(setpoint);
+        setVelocity(setpoint, arbFfVolts);
         break;
       case VOLTAGE:
         boolean negative = setpoint < 0;
@@ -187,7 +194,7 @@ public class SuTalonFx extends SuController {
     }
   }
 
-  private void setPosition(double setpoint) {
+  private void setPosition(double setpoint, double arbFfVolts) {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
@@ -195,7 +202,12 @@ public class SuTalonFx extends SuController {
       double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED / 360.0;
       double output = motorDegrees * countsToDegrees;
 
-      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
+      if (arbFfVolts == 0) {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      } else {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+            arbFfVolts / Constants.NOMINAL_VOLTAGE);
+      }
       return;
     }
     // Using sensor external to the Falcon.
@@ -205,14 +217,19 @@ public class SuTalonFx extends SuController {
 
       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
       double output = softPidController.calculate(current, setpoint);
-      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      if (arbFfVolts == 0) {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      } else {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+            arbFfVolts / Constants.NOMINAL_VOLTAGE);
+      }
       return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private void setVelocity(double setpoint) {
+  private void setVelocity(double setpoint, double arbFfVolts) {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
@@ -220,7 +237,12 @@ public class SuTalonFx extends SuController {
       double motorRps = motorRpm / 60.0;
       double output = (COUNTS_PER_REVOLUTION_INTEGRATED * motorRps) / 10.0;
 
-      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+      if (arbFfVolts == 0) {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+      } else {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
+            arbFfVolts / Constants.NOMINAL_VOLTAGE);
+      }
       return;
     }
     // Using sensor external to the Falcon.
@@ -230,7 +252,12 @@ public class SuTalonFx extends SuController {
 
       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
       double output = softPidController.calculate(current, setpoint);
-      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      if (arbFfVolts == 0) {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+      } else {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
+            arbFfVolts / Constants.NOMINAL_VOLTAGE);
+      }
       return;
     }
     throw new MotorConfigurationError(

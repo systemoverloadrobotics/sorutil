@@ -128,6 +128,35 @@ public abstract class SuController {
   public abstract void set(ControlMode mode, double setpoint);
 
   /**
+   * Same as {@link frc.sorutil.motor.SuController#set(ControlMode, double)},
+   * however this supports an additional arbitrary feed forward value, specified
+   * in Volts.
+   * 
+   * <p>
+   * The Arbitrary feed forward value should be specified in Volts relative to a
+   * nominal 12V. This value is passed to the motor controller and used as an
+   * "offset" from the zero point to help correct mechanism motion. For example,
+   * this can be used to calculate an offset to overcome static friction or
+   * gravity using the TrapezoidProfile in WPILib.
+   * </p>
+   * 
+   * <p>
+   * <em>Note</em> that this mode is only supported in closed loop control modes
+   * (Position, Velocity).
+   * </p>
+   * 
+   * @param mode       See
+   *                   {@link frc.sorutil.motor.SuController#set(ControlMode, double)}
+   *                   for description, only POSITION or VELOCITY may be used.
+   * @param setpoint   See
+   *                   {@link frc.sorutil.motor.SuController#set(ControlMode, double)}
+   *                   for description
+   * 
+   * @param arbFfVolts An arbitrary feedforward value to feed the motor in volts.
+   */
+  public abstract void set(ControlMode mode, double setpoint, double arbFfVolts);
+
+  /**
    * Stops the motor regardless of output mode.
    */
   public abstract void stop();

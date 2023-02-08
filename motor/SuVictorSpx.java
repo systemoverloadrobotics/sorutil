@@ -124,6 +124,11 @@ public class SuVictorSpx extends SuController {
   }
 
   @Override
+  public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
+    throw new MotorConfigurationError("VictorSPX doesn't support arbitrary feedfoward modes.");
+  }
+
+  @Override
   public void set(SuController.ControlMode mode, double setpoint) {
     if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
       restoreDefaultVoltageCompensation();

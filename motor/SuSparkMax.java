@@ -6,8 +6,10 @@ import com.revrobotics.REVLibError;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxAbsoluteEncoder;
 import com.revrobotics.CANSparkMax.ControlType;
+import com.revrobotics.SparkMaxPIDController.ArbFFUnits;
 
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+import frc.robot.Constants;
 import frc.sorutil.Errors;
 import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
 import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
@@ -170,8 +172,14 @@ public class SuSparkMax extends SuController {
     recordLogs();
   }
 
+
   @Override
-  public void set(ControlMode mode, double setpoint) {
+  public void set(SuController.ControlMode mode, double setpoint) {
+    set(mode, setpoint, 0);
+  }
+
+  @Override
+  public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
     // Skip updating the motor if the setpoint is the same, this reduces
     // unneccessary CAN messages.
     if (setpoint == lastSetpoint && mode == lastMode) {
@@ -186,10 +194,10 @@ public class SuSparkMax extends SuController {
         sparkMax.set(setpoint);
         break;
       case POSITION:
-        setPosition(setpoint);
+        setPosition(setpoint, arbFfVolts);
         break;
       case VELOCITY:
-        setVelocity(setpoint);
+        setVelocity(setpoint, arbFfVolts);
         break;
       case VOLTAGE:
         Errors.handleRev(sparkMax.getPIDController().setReference(setpoint, ControlType.kVoltage), logger,
@@ -198,17 +206,24 @@ public class SuSparkMax extends SuController {
     }
   }
 
-  private void setPosition(double setpoint) {
+  private void setPosition(double setpoint, double arbFfVolts) {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double motorDegrees = integrated.outputOffset * setpoint;
       double output = motorDegrees;
 
-      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
-          logger, "setting motor output");
+      if (arbFfVolts == 0) {
+        Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
+            logger, "setting motor output");
+      } else {
+        Errors.handleRev(
+            sparkMax.getPIDController().setReference(output, ControlType.kPosition, 0, arbFfVolts, ArbFFUnits.kVoltage),
+            logger, "setting motor output");
+      }
       return;
     }
+
     // Using sensor external to the SparkMAX.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
       softPidControllerEnabled = true;
@@ -216,32 +231,46 @@ public class SuSparkMax extends SuController {
 
       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
       double output = softPidController.calculate(current, setpoint);
-      sparkMax.set(output);
+      sparkMax.set(output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
       return;
     }
+
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
       double motorDegrees = connected.outputOffset * setpoint;
       double output = motorDegrees;
 
-      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
-          logger, "setting motor output");
+      if (arbFfVolts == 0) {
+        Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kPosition),
+            logger, "setting motor output");
+      } else {
+        Errors.handleRev(
+            sparkMax.getPIDController().setReference(output, ControlType.kPosition, 0, arbFfVolts, ArbFFUnits.kVoltage),
+            logger, "setting motor output");
+      }
       return;
     }
     throw new MotorConfigurationError(
         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
   }
 
-  private void setVelocity(double setpoint) {
+  private void setVelocity(double setpoint, double arbFfVolts) {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
       double output = integrated.outputOffset * setpoint;
 
-      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
-          logger, "setting motor output");
+      if (arbFfVolts == 0) {
+        Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
+            logger, "setting motor output");
+      } else {
+        Errors.handleRev(
+            sparkMax.getPIDController().setReference(output, ControlType.kVelocity, 0, arbFfVolts, ArbFFUnits.kVoltage),
+            logger, "setting motor output");
+      }
       return;
     }
+
     // Using sensor external to the SparkMAX.
     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
       softPidControllerEnabled = true;
@@ -249,15 +278,22 @@ public class SuSparkMax extends SuController {
 
       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
       double output = softPidController.calculate(current, setpoint);
-      sparkMax.set(output);
+      sparkMax.set(output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
       return;
     }
+
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
       double output = connected.outputOffset * setpoint;
 
-      Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
-          logger, "setting motor output");
+      if (arbFfVolts == 0) {
+        Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
+            logger, "setting motor output");
+      } else {
+        Errors.handleRev(
+            sparkMax.getPIDController().setReference(output, ControlType.kVelocity, 0, arbFfVolts, ArbFFUnits.kVoltage),
+            logger, "setting motor output");
+      }
       return;
     }
     throw new MotorConfigurationError(
