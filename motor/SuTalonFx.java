@@ -28,6 +28,7 @@ public class SuTalonFx extends SuController {
 
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
+  private double lastArbFf;
 
   public SuTalonFx(WPI_TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
     super(talon, motorConfig, sensorConfig,
@@ -133,7 +134,12 @@ public class SuTalonFx extends SuController {
         current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
       }
       double output = softPidController.calculate(current);
-      talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      if (lastArbFf == 0) {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+      } else {
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+            lastArbFf / Constants.NOMINAL_VOLTAGE);
+      }
     }
 
     recordLogs();
@@ -160,12 +166,13 @@ public class SuTalonFx extends SuController {
 
     // Skip updating the motor if the setpoint is the same, this reduces
     // unneccessary CAN messages.
-    if (setpoint == lastSetpoint && mode == lastMode) {
+    if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
       return;
     }
     lastSetpoint = setpoint;
     lastMode = mode;
     softPidControllerEnabled = false;
+    lastArbFf = arbFfVolts;
 
     switch (mode) {
       case PERCENT_OUTPUT:
@@ -337,6 +344,7 @@ public class SuTalonFx extends SuController {
   private String closedLoopTargetName;
   private String closedLoopErrorName;
   private String motorOutputName;
+  private String arbFfName;
   // ------- End logged value names ------
 
   private void initializeLogNames() {
@@ -351,6 +359,7 @@ public class SuTalonFx extends SuController {
     closedLoopTargetName = loggerPrefix + "ClosedLoopTarget";
     closedLoopErrorName = loggerPrefix + "ClosedLoopError";
     motorOutputName = loggerPrefix + "MotorOutputPercent";
+    arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
   }
 
   private void recordLogs() {
@@ -363,6 +372,7 @@ public class SuTalonFx extends SuController {
     aLogger.recordOutput(controllerTemperatureName, talon.getTemperature());
     aLogger.recordOutput(hasResetName, talon.hasResetOccurred());
     aLogger.recordOutput(motorOutputName, talon.getMotorOutputPercent());
+    aLogger.recordOutput(arbFfName, lastArbFf);
 
     if (lastMode == ControlMode.POSITION || lastMode == ControlMode.VELOCITY) {
       aLogger.recordOutput(closedLoopTargetName, talon.getClosedLoopTarget());

@@ -24,6 +24,7 @@ public class SuSparkMax extends SuController {
 
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
+  private double lastArbFf;
   
   // Privately store references to the connected sensor objects that Rev uses.
   private SparkMaxAbsoluteEncoder analogSensor;
@@ -160,12 +161,12 @@ public class SuSparkMax extends SuController {
         // velocity mode
         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
         double output = softPidController.calculate(current);
-        sparkMax.set(output);
+        sparkMax.set(output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
       } else {
         // position mode
         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
         double output = softPidController.calculate(current);
-        sparkMax.set(output);
+        sparkMax.set(output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
       }
     }
 
@@ -182,12 +183,13 @@ public class SuSparkMax extends SuController {
   public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
     // Skip updating the motor if the setpoint is the same, this reduces
     // unneccessary CAN messages.
-    if (setpoint == lastSetpoint && mode == lastMode) {
+    if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
       return;
     }
     lastSetpoint = setpoint;
     lastMode = mode;
     softPidControllerEnabled = false;
+    lastArbFf = arbFfVolts;
 
     switch (mode) {
       case PERCENT_OUTPUT:
@@ -412,6 +414,7 @@ public class SuSparkMax extends SuController {
   private String supplyCurrentName;
   private String motorTemperatureName;
   private String motorOutputName;
+  private String arbFfName;
   // ------- End logged value names ------
 
   private void initializeLogNames() {
@@ -419,6 +422,7 @@ public class SuSparkMax extends SuController {
     supplyCurrentName = loggerPrefix + "SupplyCurrent";
     motorTemperatureName = loggerPrefix + "MotorTemperature";
     motorOutputName = loggerPrefix + "MotorOutputPercent";
+    arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
   }
 
   private void recordLogs() {
@@ -426,5 +430,6 @@ public class SuSparkMax extends SuController {
     aLogger.recordOutput(motorOutputName, sparkMax.getAppliedOutput());
     aLogger.recordOutput(supplyCurrentName, sparkMax.getOutputCurrent());
     aLogger.recordOutput(motorTemperatureName, sparkMax.getMotorTemperature());
+    aLogger.recordOutput(arbFfName, lastArbFf);
   }
 }

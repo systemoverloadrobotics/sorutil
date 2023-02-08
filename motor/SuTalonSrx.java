@@ -26,6 +26,7 @@ public class SuTalonSrx extends SuController {
 
   private SuController.ControlMode lastMode;
   private double lastSetpoint;
+  private double lastArbFf;
 
   public SuTalonSrx(WPI_TalonSRX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
     super(talon, motorConfig, sensorConfig,
@@ -138,12 +139,22 @@ public class SuTalonSrx extends SuController {
         // velocity mode
         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
         double output = softPidController.calculate(current);
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+        if (lastArbFf == 0) {
+          talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+        } else {
+          talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+              lastArbFf / Constants.NOMINAL_VOLTAGE);
+        }
       } else {
         // position mode
         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
         double output = softPidController.calculate(current);
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+        if (lastArbFf == 0) {
+          talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+        } else {
+          talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+              lastArbFf / Constants.NOMINAL_VOLTAGE);
+        }
       }
     }
 
@@ -170,12 +181,13 @@ public class SuTalonSrx extends SuController {
     }
 
     // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
-    if (setpoint == lastSetpoint && mode == lastMode) {
+    if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
       return;
     }
     lastSetpoint = setpoint;
     lastMode = mode;
     softPidControllerEnabled = false;
+    lastArbFf = arbFfVolts;
 
     switch(mode) {
       case PERCENT_OUTPUT:
@@ -366,6 +378,7 @@ public class SuTalonSrx extends SuController {
   private String closedLoopTargetName;
   private String closedLoopErrorName;
   private String motorOutputName;
+  private String arbFfName;
   // ------- End logged value names ------
 
   private void initializeLogNames() {
@@ -380,6 +393,7 @@ public class SuTalonSrx extends SuController {
     closedLoopTargetName = loggerPrefix + "ClosedLoopTarget";
     closedLoopErrorName = loggerPrefix + "ClosedLoopError";
     motorOutputName = loggerPrefix + "MotorOutputPercent";
+    arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
   }
 
   private void recordLogs() {
@@ -392,6 +406,7 @@ public class SuTalonSrx extends SuController {
     aLogger.recordOutput(controllerTemperatureName, talon.getTemperature());
     aLogger.recordOutput(hasResetName, talon.hasResetOccurred());
     aLogger.recordOutput(motorOutputName, talon.getMotorOutputPercent());
+    aLogger.recordOutput(arbFfName, lastArbFf);
 
     if (lastMode == ControlMode.POSITION || lastMode == ControlMode.VELOCITY) {
       aLogger.recordOutput(closedLoopTargetName, talon.getClosedLoopTarget());
