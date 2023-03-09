@@ -99,6 +99,16 @@ public class SorMath {
     return a * a;
   }
 
+  /* public static double signedCube(double a) {
+    if (a < 0) {
+      return -(a * a * a);
+    }
+    return a * a * a;
+  } */
+
+  // TODO: Change to this function if we cube response curve function
+
+
   /**
    * Calculate revolutions per minute, given a wheel size and a desired speed in
    * meters per second.
