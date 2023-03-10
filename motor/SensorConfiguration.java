@@ -19,7 +19,7 @@ import com.ctre.phoenix.sensors.SensorTimeBase;
  * </ul>
  * 
  * <p>
- * Note: all three configurations support an "outputOffset" parameter that is
+ * Note: all three configurations support an "outputGearRatio" parameter that is
  * applied to the setpoint of the motor as a multiplier. This should be set to
  * the effective overall gear ratio between the sensor (or motor, in the case of
  * the Integrated sensor) and the mechanism itself.
@@ -27,7 +27,7 @@ import com.ctre.phoenix.sensors.SensorTimeBase;
  * <p>
  * For example, if this motor is connected to a
  * gearbox that reduces the output 5x (i.e. a
- * 5:1 ratio), then outputOffset should be 5. Note: if an overdrive is applied,
+ * 5:1 ratio), then outputGearRatio should be 5. Note: if an overdrive is applied,
  * this value should be a fraction, not a
  * negative number. For example, if the output is geared to increase the output
  * 2x (i.e. a 2:1 ratio), this value should
@@ -36,7 +36,7 @@ import com.ctre.phoenix.sensors.SensorTimeBase;
  * 
  * <p>
  * If the sensor is connected directly to the output, e.g. mounted directly on a
- * shooter output shaft, then outputOffset
+ * shooter output shaft, then outputGearRatio
  * should be 1.0.
  * </p>
  * 
@@ -101,10 +101,10 @@ public class SensorConfiguration {
    * an instance of ExternalSensorSource.
    */
   public static class IntegratedSensorSource implements SensorSource {
-    public final double outputOffset;
+    public final double outputGearRatio;
 
-    public IntegratedSensorSource(double outputOffset) {
-      this.outputOffset = outputOffset;
+    public IntegratedSensorSource(double outputGearRatio) {
+      this.outputGearRatio = outputGearRatio;
     }
   }
   
@@ -121,11 +121,11 @@ public class SensorConfiguration {
    */
   public static class ExternalSensorSource implements SensorSource {
     public final ExternalSensor sensor;
-    public final double outputOffset;
+    public final double outputGearRatio;
 
-    public ExternalSensorSource(ExternalSensor s, double outputOffset) {
+    public ExternalSensorSource(ExternalSensor s, double outputGearRatio) {
       this.sensor = s;
-      this.outputOffset = outputOffset;
+      this.outputGearRatio = outputGearRatio;
     }
   }
 
@@ -136,14 +136,14 @@ public class SensorConfiguration {
    */
   public static class ConnectedSensorSource implements SensorSource {
     public final int countsPerRev;
-    public final double outputOffset;
+    public final double outputGearRatio;
     public final ConnectedSensorType type;
 
     private boolean inverted;
 
-    public ConnectedSensorSource(int countsPerRev, double outputOffset, ConnectedSensorType type) {
+    public ConnectedSensorSource(int countsPerRev, double outputGearRatio, ConnectedSensorType type) {
       this.countsPerRev = countsPerRev;
-      this.outputOffset = outputOffset;
+      this.outputGearRatio = outputGearRatio;
       this.type = type;
     }
 
@@ -183,7 +183,7 @@ public class SensorConfiguration {
     }
 
     public double velocity() {
-      return enc.getVelocity() / 6;
+      return (enc.getVelocity() / 360.0) * 60;
     }
   }
 
@@ -199,11 +199,11 @@ public class SensorConfiguration {
     } 
 
     public void setPosition(double position) {
-      offset = enc.getDistance() - position; 
+      offset = enc.getDistance() - (position / 360.0);
     }
 
     public double position() {
-      return enc.getDistance() * 360 - offset;
+      return (enc.getDistance() * 360.0) * (360.0 * offset);
     }
 
     public double velocity() {

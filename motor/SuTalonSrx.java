@@ -232,9 +232,9 @@ public class SuTalonSrx extends SuController {
       var connected = (SensorConfiguration.ConnectedSensorSource)sensorConfig.source();
       if (connected.type == SensorConfiguration.ConnectedSensorType.QUAD_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
-        double sensorDegrees = connected.outputOffset * setpoint;
+        double sensorDegrees = connected.outputGearRatio * setpoint;
         double countsToDegrees = connected.countsPerRev / 360.0;
-        double output = sensorDegrees*countsToDegrees;
+        double output = sensorDegrees * countsToDegrees;
 
         if (arbFfVolts == 0) {
           talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
@@ -247,7 +247,7 @@ public class SuTalonSrx extends SuController {
       
       if (connected.type == SensorConfiguration.ConnectedSensorType.PWM_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_ABSOLUTE) {
-        double sensorDegrees = connected.outputOffset * setpoint;
+        double sensorDegrees = connected.outputGearRatio * setpoint;
         // Map the full range of the rotation to 0-1, assuming that the sensor can't over-rotate.
         double output = sensorDegrees/360.0;
 
@@ -282,7 +282,7 @@ public class SuTalonSrx extends SuController {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
       if (connected.type == SensorConfiguration.ConnectedSensorType.QUAD_ENCODER
           || connected.type == SensorConfiguration.ConnectedSensorType.MAG_ENCODER_RELATIVE) {
-        double motorRpm = connected.outputOffset * setpoint;
+        double motorRpm = connected.outputGearRatio * setpoint;
         double motorRps = motorRpm / 60.0;
         double output = (connected.countsPerRev * motorRps) / 10.0;
 
@@ -328,11 +328,14 @@ public class SuTalonSrx extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorPosition = source.sensor.position();
+      return sensorPosition / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
       var source = (ConnectedSensorSource) sensorConfig.source();
-      return talon.getSelectedSensorPosition() / (source.countsPerRev * 360.0);
+      double sensorPosition = talon.getSelectedSensorPosition() / (source.countsPerRev * 360.0);
+      return sensorPosition / source.outputGearRatio;
     }
     return 0;
   }
@@ -340,11 +343,14 @@ public class SuTalonSrx extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorVelocity = source.sensor.velocity();
+      return sensorVelocity / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
       var source = (ConnectedSensorSource) sensorConfig.source();
-      return talon.getSelectedSensorVelocity() * 10.0 * 60.0 / source.countsPerRev;
+      double sensorVelocity = talon.getSelectedSensorVelocity() * 10.0 * 60.0 / source.countsPerRev;
+      return sensorVelocity / source.outputGearRatio;
     }
     return 0;
   }
@@ -352,7 +358,12 @@ public class SuTalonSrx extends SuController {
   @Override
   public void setSensorPosition(double position) {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      source.sensor.setPosition(position * source.outputGearRatio);
+    }
+    if (sensorConfig.source() instanceof ConnectedSensorSource) {
+      ConnectedSensorSource source = (ConnectedSensorSource) sensorConfig.source();
+      talon.setSelectedSensorPosition(source.countsPerRev * source.outputGearRatio * (position / 360.0));
     }
   }
 

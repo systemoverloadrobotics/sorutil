@@ -212,7 +212,7 @@ public class SuSparkMax extends SuController {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double motorDegrees = integrated.outputOffset * setpoint;
+      double motorDegrees = integrated.outputGearRatio * setpoint;
       double output = motorDegrees;
 
       if (arbFfVolts == 0) {
@@ -239,7 +239,7 @@ public class SuSparkMax extends SuController {
 
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
-      double motorDegrees = connected.outputOffset * setpoint;
+      double motorDegrees = connected.outputGearRatio * setpoint;
       double output = motorDegrees;
 
       if (arbFfVolts == 0) {
@@ -260,7 +260,7 @@ public class SuSparkMax extends SuController {
     // Using the integrated Neo source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double output = integrated.outputOffset * setpoint;
+      double output = integrated.outputGearRatio * setpoint;
 
       if (arbFfVolts == 0) {
         Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
@@ -286,7 +286,7 @@ public class SuSparkMax extends SuController {
 
     if (sensorConfig.source() instanceof SensorConfiguration.ConnectedSensorSource) {
       var connected = (SensorConfiguration.ConnectedSensorSource) sensorConfig.source();
-      double output = connected.outputOffset * setpoint;
+      double output = connected.outputGearRatio * setpoint;
 
       if (arbFfVolts == 0) {
         Errors.handleRev(sparkMax.getPIDController().setReference(output, ControlType.kVelocity),
@@ -327,25 +327,30 @@ public class SuSparkMax extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      return sparkMax.getEncoder().getPosition();
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      return sparkMax.getEncoder().getPosition() / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
-      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
-      switch (type) {
+      var source = (ConnectedSensorSource) sensorConfig.source();
+      switch (source.type) {
         case QUAD_ENCODER:
           // fallthrough
         case MAG_ENCODER_RELATIVE:
-          return digitalSensor.getPosition();
+          return digitalSensor.getPosition() / source.outputGearRatio;
         case PWM_ENCODER:
           // fallthrough
         case MAG_ENCODER_ABSOLUTE:
-          return analogSensor.getPosition();
+          // While this being divided by the ratio is techincally correct, it 
+          // probably doesn't make much sense in practice. This should always be
+          // 1 when used in absolute mode.
+          return analogSensor.getPosition() / source.outputGearRatio;
         default:
-          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+          throw new MotorConfigurationError("unknown sensor type: " + source.type.toString());
       }
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      return source.sensor.position() / source.outputGearRatio;
     }
     return 0;
   }
@@ -353,48 +358,58 @@ public class SuSparkMax extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      return sparkMax.getEncoder().getVelocity();
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      return sparkMax.getEncoder().getVelocity() / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
-      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
-      switch (type) {
+      var source = (ConnectedSensorSource) sensorConfig.source();
+      switch (source.type) {
         case QUAD_ENCODER:
           // fallthrough
         case MAG_ENCODER_RELATIVE:
-          return digitalSensor.getVelocity();
+          return digitalSensor.getVelocity() / source.outputGearRatio;
         case PWM_ENCODER:
           // fallthrough
         case MAG_ENCODER_ABSOLUTE:
-          return analogSensor.getVelocity();
+          // While this being divided by the ratio is techincally correct, it 
+          // probably doesn't make much sense in practice. This should always be
+          // 1 when used in absolute mode.
+          return analogSensor.getVelocity() / source.outputGearRatio;
         default:
-          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+          throw new MotorConfigurationError("unknown sensor type: " + source.type.toString());
       }
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      return source.sensor.velocity() / source.outputGearRatio;
     }
     return 0;
   }
 
   @Override
   public void setSensorPosition(double position) {
+    if (sensorConfig.source() instanceof IntegratedSensorSource) {
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      sparkMax.getEncoder().setPosition(position * source.outputGearRatio);
+    }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      source.sensor.setPosition(position * source.outputGearRatio);
     }
     if (sensorConfig.source() instanceof ConnectedSensorSource) {
-      var type = ((ConnectedSensorSource) sensorConfig.source()).type;
-      switch (type) {
+      var source = (ConnectedSensorSource) sensorConfig.source();
+      switch (source.type) {
         case QUAD_ENCODER:
           // fallthrough
         case MAG_ENCODER_RELATIVE:
-          digitalSensor.setPosition(position);
+          digitalSensor.setPosition(position * source.outputGearRatio);
           break;
         case PWM_ENCODER:
           // fallthrough
         case MAG_ENCODER_ABSOLUTE:
           throw new MotorConfigurationError("can't override the position of an absolute sensor");
         default:
-          throw new MotorConfigurationError("unknown sensor type: " + type.toString());
+          throw new MotorConfigurationError("unknown sensor type: " + source.type.toString());
       }
     }
   }

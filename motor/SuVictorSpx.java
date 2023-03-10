@@ -230,7 +230,9 @@ public class SuVictorSpx extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorPosition = source.sensor.position();
+      return sensorPosition / source.outputGearRatio;
     }
     return 0;
   }
@@ -238,7 +240,9 @@ public class SuVictorSpx extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorRpm = source.sensor.velocity();
+      return sensorRpm / source.outputGearRatio;
     }
     return 0;
   }
@@ -246,7 +250,8 @@ public class SuVictorSpx extends SuController {
   @Override
   public void setSensorPosition(double position) {
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      source.sensor.setPosition(position * source.outputGearRatio);
     }
   }
 

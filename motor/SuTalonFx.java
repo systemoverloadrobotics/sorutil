@@ -205,7 +205,7 @@ public class SuTalonFx extends SuController {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double motorDegrees = integrated.outputOffset * setpoint;
+      double motorDegrees = integrated.outputGearRatio * setpoint;
       double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED / 360.0;
       double output = motorDegrees * countsToDegrees;
 
@@ -240,7 +240,7 @@ public class SuTalonFx extends SuController {
     // Using the integrated Falcon source
     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double motorRpm = integrated.outputOffset * setpoint;
+      double motorRpm = integrated.outputGearRatio * setpoint;
       double motorRps = motorRpm / 60.0;
       double output = (COUNTS_PER_REVOLUTION_INTEGRATED * motorRps) / 10.0;
 
@@ -292,10 +292,14 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      return talon.getSelectedSensorPosition() / (COUNTS_PER_REVOLUTION_INTEGRATED * 360.0);
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      double outputShaftPosition = talon.getSelectedSensorPosition() / (COUNTS_PER_REVOLUTION_INTEGRATED * 360.0);
+      return outputShaftPosition / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorPosition = source.sensor.position();
+      return sensorPosition / source.outputGearRatio;
     }
     return 0;
   }
@@ -303,10 +307,14 @@ public class SuTalonFx extends SuController {
   @Override
   public double outputVelocity() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      return talon.getSelectedSensorVelocity() * 10.0 * 60.0 / COUNTS_PER_REVOLUTION_INTEGRATED;
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      double outputShaftRpm = (talon.getSelectedSensorVelocity() * 10.0 * 60.0) / COUNTS_PER_REVOLUTION_INTEGRATED;
+      return outputShaftRpm / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      return ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      double sensorRpm = source.sensor.velocity();
+      return sensorRpm / source.outputGearRatio;
     }
     return 0;
   }
@@ -314,11 +322,13 @@ public class SuTalonFx extends SuController {
   @Override
   public void setSensorPosition(double position) {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      // TODO: this isn't quite right. It should be actually modifying this better.
-      talon.configIntegratedSensorOffset(position % 360);
+      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+      double offset = 360 * source.outputGearRatio * COUNTS_PER_REVOLUTION_INTEGRATED * position;
+      talon.configIntegratedSensorOffset(offset);
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ((ExternalSensorSource) sensorConfig.source()).sensor.setPosition(position);
+      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+      source.sensor.setPosition(position * source.outputGearRatio);
     }
   }
 
