@@ -293,7 +293,7 @@ public class SuTalonFx extends SuController {
   public double outputPosition() {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
       IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
-      double outputShaftPosition = talon.getSelectedSensorPosition() / (COUNTS_PER_REVOLUTION_INTEGRATED * 360.0);
+      double outputShaftPosition = talon.getSelectedSensorPosition() / COUNTS_PER_REVOLUTION_INTEGRATED * 360.0;
       return outputShaftPosition / source.outputGearRatio;
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
