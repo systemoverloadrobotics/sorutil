@@ -210,9 +210,9 @@ public class SuTalonFx extends SuController {
       double output = motorDegrees * countsToDegrees;
 
       if (arbFfVolts == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
       } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output, DemandType.ArbitraryFeedForward,
             arbFfVolts / Constants.NOMINAL_VOLTAGE);
       }
       return;
@@ -322,9 +322,10 @@ public class SuTalonFx extends SuController {
   @Override
   public void setSensorPosition(double position) {
     if (sensorConfig.source() instanceof IntegratedSensorSource) {
+      System.out.println("Hi start");
       IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
-      double offset = 360 * source.outputGearRatio * COUNTS_PER_REVOLUTION_INTEGRATED * position;
-      talon.configIntegratedSensorOffset(offset);
+      double offset = source.outputGearRatio * COUNTS_PER_REVOLUTION_INTEGRATED * position;
+      talon.setSelectedSensorPosition(offset);
     }
     if (sensorConfig.source() instanceof ExternalSensorSource) {
       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
