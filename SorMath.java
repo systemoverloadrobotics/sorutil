@@ -7,6 +7,16 @@ public class SorMath {
   public static final float F_EPSILON = 1e-5f;
 
 
+  /**
+   * caresianToPolar converts an x, y coordinate pair into polar coordinates
+   * 
+   * Note that negative values can produce a negative theta, which indicates clockwise rotation, rather than an angle
+   * >180.
+   * 
+   * @param x
+   * @param y
+   * @return an array with two elements representing the r and theta of the polar vector.
+   */
   public static double[] cartesianToPolar(double x, double y) {
     return new double[] {Math.sqrt(x * x + y * y), (Math.atan2(y, x) * 180) / Math.PI};
   }
@@ -127,5 +137,58 @@ public class SorMath {
    */
   public static double degreesToMeters(double diameterWheelSize, double degrees) {
     return (degrees / 360) * (4 * Math.PI * 0.0254); 
+  }
+
+  /**
+   * circleSnappingDegrees will "snap" an angle to the nearest division, given as a number of divisions to create from a
+   * circle.
+   * 
+   * For example, calling this function with
+   * 
+   * <pre>
+   * circleSnappingDegrees(85, 4)
+   * </pre>
+   * 
+   * will return 90, since 90 is the closest angle to 85 degrees that is a valid snapping value.
+   * 
+   * <p>
+   * If the input angle is negative, it will be treated as a positive angle with as if it were subtracted from 360
+   * degrees. This means that 320 degrees and -40 degrees will be treated identically, and would both snap to 0 if the
+   * function was invoked with 4 divisions.
+   * </p>
+   * 
+   * @param input
+   * @param divisions a number of divisions to make of a circle. Note that this value *must* divide evenly into 360. 
+   * This means that e.g. 4 is a valid input, but 13 is not. Using divisors that result in non-integer divisions of 360, 
+   * the output of this function will be unstable.
+   * @return
+   */
+  public static int circleSnappingDegrees(double input, int divisions) {
+    // Make all angles positive
+    if (input < 0) {
+      input = 360.0 + input;
+    }
+
+    // Cap all angles to 360 degrees
+    input %= 360.0;
+
+    int degPerDivision = 360 / divisions;
+
+    // Find the lower division bound
+    int lowerDivision = ((int)input) / degPerDivision;
+
+    // Find how far along the division this value is
+    double divisionPosition = (input - (double) lowerDivision) / (double) degPerDivision;
+
+    // If we're more than halfway thorugh the division, the closest is the next highest value.
+    int snappedDivision = 0;
+    if (divisionPosition > 0.5) {
+      snappedDivision = lowerDivision + 1;
+    } else {
+      snappedDivision = lowerDivision;
+    }
+
+    // Make sure the value is at most 359
+    return (snappedDivision * degPerDivision) % 360;
   }
 }
