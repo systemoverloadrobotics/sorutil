@@ -140,21 +140,16 @@ public class SuSparkMax extends SuController {
   }
 
   boolean canDisconnectGuard = false;
+  private REVLibError lastCode;
 
   @Override
   public void tick() {
     super.tick();
 
-    // Only print CAN disconnect messages once
-    if (sparkMax.getLastError() == REVLibError.kCANDisconnected) {
-      if (!canDisconnectGuard) {
-        canDisconnectGuard = true;
-        Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
-      }
-    } else {
-      Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely due to setting output");
+    if (lastCode != sparkMax.getLastError()) {
+      Errors.handleRev(sparkMax.getLastError(), logger, "in motor loop, likely from setting a motor update");
+      lastCode = sparkMax.getLastError();
     }
-    sparkMax.clearFaults();
 
     if (softPidControllerEnabled) {
       if (softPidControllerMode) {
