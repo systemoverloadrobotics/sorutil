@@ -65,7 +65,7 @@ public class SorMath {
    * We would expect linearInterpolate to return 200.
    * </p>
    * 
-   * Note that there is an expectation that scaleLow < scaleHigh, however, low is not neccessarily "lower" than high.
+   * Note that there is an expectation that scaleLow is smaller than scaleHigh, however, low is not neccessarily "lower" than high.
    * 
    * @param input the value for which you'd like an interpolated input in the (low, high) range for
    * @param scaleLow the lower bound of the interpolation window, 10 in the example

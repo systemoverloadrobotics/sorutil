@@ -37,8 +37,8 @@ import com.ctre.phoenix.sensors.SensorTimeBase;
  * If you use ConnectedSensorSource or ExternalSensorSource, you will need to configure the encoder type separately.
  * </p>
  * 
- * <h3>Example Sensor Configurations</h3>
- * <h4>Falcon 500 powered roller with 6:1 gearbox</h4>
+ * <h2>Example Sensor Configurations</h2>
+ * <h3>Falcon 500 powered roller with 6:1 gearbox</h3>
  * 
  * <pre>
  * var motorConfig = ...;
@@ -52,8 +52,8 @@ import com.ctre.phoenix.sensors.SensorTimeBase;
  * motor.set(ControlMode.VELOCITY, 800);
  * </pre>
  * 
- * <h4>TalonSRX powered arm with 4:1 reduction before the sensor, and 23.4:1 reduction after the sensor, using external
- * sensor</h4>
+ * <h3>TalonSRX powered arm with 4:1 reduction before the sensor, and 23.4:1 reduction after the sensor, using external
+ * sensor</h3>
  * 
  * <pre>
  * var motorConfig = ...;
