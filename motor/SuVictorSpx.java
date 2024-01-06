@@ -1,297 +1,299 @@
-package frc.sorutil.motor;
+// DEPRECATED
 
-import com.ctre.phoenix.ErrorCode;
-import com.ctre.phoenix.motorcontrol.IFollower;
-import com.ctre.phoenix.motorcontrol.IMotorController;
-import com.ctre.phoenix.motorcontrol.NeutralMode;
-import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+// package frc.sorutil.motor;
 
-import edu.wpi.first.wpilibj.motorcontrol.MotorController;
-import frc.robot.Constants;
-import frc.sorutil.Errors;
-import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
-import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
-import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
+// import com.ctre.phoenix.ErrorCode;
+// import com.ctre.phoenix.motorcontrol.IFollower;
+// import com.ctre.phoenix.motorcontrol.IMotorController;
+// import com.ctre.phoenix.motorcontrol.NeutralMode;
+// import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 
-public class SuVictorSpx extends SuController {
-  private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
+// import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+// import frc.robot.Constants;
+// import frc.sorutil.Errors;
+// import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+// import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
+// import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
-  private final WPI_VictorSPX victor;
+// public class SuVictorSpx extends SuController {
+//   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
 
-  private boolean voltageControlOverrideSet = false;
-  private Double lastVoltageCompensation = null;
+//   private final WPI_VictorSPX victor;
 
-  private SuController.ControlMode lastMode;
-  private double lastSetpoint;
-  private double lastArbFf;
+//   private boolean voltageControlOverrideSet = false;
+//   private Double lastVoltageCompensation = null;
 
-  public SuVictorSpx(WPI_VictorSPX victor, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(victor, motorConfig, sensorConfig,
-        java.util.logging.Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)), name);
+//   private SuController.ControlMode lastMode;
+//   private double lastSetpoint;
+//   private double lastArbFf;
 
-    this.victor = victor;
+//   public SuVictorSpx(WPI_VictorSPX victor, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
+//     super(victor, motorConfig, sensorConfig,
+//         java.util.logging.Logger.getLogger(String.format("VictorSPX(%d: %s)", victor.getDeviceID(), name)), name);
 
-    configure(motorConfig, sensorConfig);
-    initializeLogNames();
-    aLogger.recordOutput(loggerPrefix + "ID", victor.getDeviceID());
-  }
+//     this.victor = victor;
 
-  @Override
-  protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
-    Errors.handleCtre(victor.configFactoryDefault(), logger, "resetting motor config");
+//     configure(motorConfig, sensorConfig);
+//     initializeLogNames();
+//     aLogger.recordOutput(loggerPrefix + "ID", victor.getDeviceID());
+//   }
 
-    victor.setInverted(config.inverted());
+//   @Override
+//   protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
+//     Errors.handleCtre(victor.configFactoryDefault(), logger, "resetting motor config");
 
-    Errors.handleCtre(victor.config_kP(0, config.pidProfile().p()), logger, "setting P constant");
-    Errors.handleCtre(victor.config_kI(0, config.pidProfile().i()), logger, "setting I constant");
-    Errors.handleCtre(victor.config_kD(0, config.pidProfile().d()), logger, "setting D constant");
-    Errors.handleCtre(victor.config_kF(0, config.pidProfile().f()), logger, "setting F constant");
+//     victor.setInverted(config.inverted());
 
-    if (config.currentLimit() != null) {
-      logger.warning(
-          "Victor SPX initialized with current limit, current limits are NOT SUPPORTED, ignoring instruction.");
-    }
+//     Errors.handleCtre(victor.config_kP(0, config.pidProfile().p()), logger, "setting P constant");
+//     Errors.handleCtre(victor.config_kI(0, config.pidProfile().i()), logger, "setting I constant");
+//     Errors.handleCtre(victor.config_kD(0, config.pidProfile().d()), logger, "setting D constant");
+//     Errors.handleCtre(victor.config_kF(0, config.pidProfile().f()), logger, "setting F constant");
 
-    Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
-        logger, "configuring voltage compenstation");
-    victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
+//     if (config.currentLimit() != null) {
+//       logger.warning(
+//           "Victor SPX initialized with current limit, current limits are NOT SUPPORTED, ignoring instruction.");
+//     }
 
-    NeutralMode desiredMode = NeutralMode.Coast;
-    if (config.idleMode() == IdleMode.BRAKE) {
-      desiredMode = NeutralMode.Brake;
-    }
-    victor.setNeutralMode(desiredMode);
+//     Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
+//         logger, "configuring voltage compenstation");
+//     victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
 
-    double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    if (config.neutralDeadband() != null){
-      neutralDeadband = config.neutralDeadband();
-    }
-    Errors.handleCtre(victor.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
+//     NeutralMode desiredMode = NeutralMode.Coast;
+//     if (config.idleMode() == IdleMode.BRAKE) {
+//       desiredMode = NeutralMode.Brake;
+//     }
+//     victor.setNeutralMode(desiredMode);
 
-    Errors.handleCtre(victor.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
-    Errors.handleCtre(victor.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
+//     double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
+//     if (config.neutralDeadband() != null){
+//       neutralDeadband = config.neutralDeadband();
+//     }
+//     Errors.handleCtre(victor.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
 
-    if (sensorConfig != null) {
-      if (sensorConfig.source() instanceof IntegratedSensorSource) {
-        throw new MotorConfigurationError(
-            "Victor SPX has no integrated sensor, but motor was configured to use integerated sensor source");
-      }
-      if (sensorConfig.source() instanceof ConnectedSensorSource) {
-        throw new MotorConfigurationError(
-            "Victor SPX does not supported directly connected sensors, but was configured to use one.");
-      }
-      if (sensorConfig.source() instanceof ExternalSensorSource) {
-        configureSoftPid();
-      }
-    }
-  }
+//     Errors.handleCtre(victor.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
+//     Errors.handleCtre(victor.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
 
-  @Override
-  public MotorController rawController() {
-    return victor;
-  }
+//     if (sensorConfig != null) {
+//       if (sensorConfig.source() instanceof IntegratedSensorSource) {
+//         throw new MotorConfigurationError(
+//             "Victor SPX has no integrated sensor, but motor was configured to use integerated sensor source");
+//       }
+//       if (sensorConfig.source() instanceof ConnectedSensorSource) {
+//         throw new MotorConfigurationError(
+//             "Victor SPX does not supported directly connected sensors, but was configured to use one.");
+//       }
+//       if (sensorConfig.source() instanceof ExternalSensorSource) {
+//         configureSoftPid();
+//       }
+//     }
+//   }
 
-  // Record the last log value to prevent log flooding.
-  ErrorCode lastCode = ErrorCode.OK;
+//   @Override
+//   public MotorController rawController() {
+//     return victor;
+//   }
 
-  @Override
-  public void tick() {
-    super.tick();
+//   // Record the last log value to prevent log flooding.
+//   ErrorCode lastCode = ErrorCode.OK;
 
-    if (lastCode != victor.getLastError()) {
-      Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
-      lastCode = victor.getLastError();
-    }
+//   @Override
+//   public void tick() {
+//     super.tick();
 
-    if (softPidControllerEnabled) {
-      if (softPidControllerMode) {
-        // velocity mode
-        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
-        double output = softPidController.calculate(current);
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
-            output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
-      } else {
-        // position mode
-        double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
-        double output = softPidController.calculate(current);
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
-            output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
-      }
-    }
+//     if (lastCode != victor.getLastError()) {
+//       Errors.handleCtre(victor.getLastError(), logger, "in motor loop, likely from setting a motor update");
+//       lastCode = victor.getLastError();
+//     }
 
-    recordLogs();
-  }
+//     if (softPidControllerEnabled) {
+//       if (softPidControllerMode) {
+//         // velocity mode
+//         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+//         double output = softPidController.calculate(current);
+//         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
+//             output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
+//       } else {
+//         // position mode
+//         double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+//         double output = softPidController.calculate(current);
+//         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
+//             output + (lastArbFf / Constants.NOMINAL_VOLTAGE));
+//       }
+//     }
 
-  private void restoreDefaultVoltageCompensation() {
-    Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
-        logger, "configuring voltage compenstation");
-    victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
-  }
+//     recordLogs();
+//   }
 
-  @Override
-  public void set(SuController.ControlMode mode, double setpoint) {
-    set(mode, setpoint, 0);
-  }
+//   private void restoreDefaultVoltageCompensation() {
+//     Errors.handleCtre(victor.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
+//         logger, "configuring voltage compenstation");
+//     victor.enableVoltageCompensation(config.voltageCompenstationEnabled());
+//   }
 
-  @Override
-  public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
-    if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
-      restoreDefaultVoltageCompensation();
-      voltageControlOverrideSet = false;
-      lastVoltageCompensation = null;
-    }
+//   @Override
+//   public void set(SuController.ControlMode mode, double setpoint) {
+//     set(mode, setpoint, 0);
+//   }
 
-    // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
-    if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
-      return;
-    }
-    lastSetpoint = setpoint;
-    lastMode = mode;
-    softPidControllerEnabled = false;
-    lastArbFf = arbFfVolts;
+//   @Override
+//   public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
+//     if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
+//       restoreDefaultVoltageCompensation();
+//       voltageControlOverrideSet = false;
+//       lastVoltageCompensation = null;
+//     }
 
-    switch (mode) {
-      case PERCENT_OUTPUT:
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
-        break;
-      case POSITION:
-        setPosition(setpoint, arbFfVolts);
-        break;
-      case VELOCITY:
-        setVelocity(setpoint, arbFfVolts);
-        break;
-      case VOLTAGE:
-        boolean negative = setpoint < 0;
-        double abs = Math.abs(setpoint);
-        if (lastVoltageCompensation != null && setpoint != lastVoltageCompensation) {
-          Errors.handleCtre(victor.configVoltageCompSaturation(abs), logger,
-              "configuring voltage compenstation for voltage control");
-          lastVoltageCompensation = setpoint;
-        }
-        if (!voltageControlOverrideSet) {
-          victor.enableVoltageCompensation(true);
-          voltageControlOverrideSet = true;
-        }
-        victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
-        break;
-    }
-  }
+//     // Skip updating the motor if the setpoint is the same, this reduces unneccessary CAN messages.
+//     if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
+//       return;
+//     }
+//     lastSetpoint = setpoint;
+//     lastMode = mode;
+//     softPidControllerEnabled = false;
+//     lastArbFf = arbFfVolts;
 
-  private void setPosition(double setpoint, double arbFfVolts) {
-    // Using sensor external to the Victor.
-    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      softPidControllerEnabled = true;
-      softPidControllerMode = false;
+//     switch (mode) {
+//       case PERCENT_OUTPUT:
+//         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
+//         break;
+//       case POSITION:
+//         setPosition(setpoint, arbFfVolts);
+//         break;
+//       case VELOCITY:
+//         setVelocity(setpoint, arbFfVolts);
+//         break;
+//       case VOLTAGE:
+//         boolean negative = setpoint < 0;
+//         double abs = Math.abs(setpoint);
+//         if (lastVoltageCompensation != null && setpoint != lastVoltageCompensation) {
+//           Errors.handleCtre(victor.configVoltageCompSaturation(abs), logger,
+//               "configuring voltage compenstation for voltage control");
+//           lastVoltageCompensation = setpoint;
+//         }
+//         if (!voltageControlOverrideSet) {
+//           victor.enableVoltageCompensation(true);
+//           voltageControlOverrideSet = true;
+//         }
+//         victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
+//         break;
+//     }
+//   }
 
-      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
-      double output = softPidController.calculate(current, setpoint);
-      victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
-          output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
-      return;
-    }
-    throw new MotorConfigurationError(
-        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
-  }
+//   private void setPosition(double setpoint, double arbFfVolts) {
+//     // Using sensor external to the Victor.
+//     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+//       softPidControllerEnabled = true;
+//       softPidControllerMode = false;
 
-  private void setVelocity(double setpoint, double arbFfVolts) {
-    // Using sensor external to the Victor.
-    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      softPidControllerEnabled = true;
-      softPidControllerMode = true;
+//       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+//       double output = softPidController.calculate(current, setpoint);
+//       victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
+//           output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
+//       return;
+//     }
+//     throw new MotorConfigurationError(
+//         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+//   }
 
-      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
-      double output = softPidController.calculate(current, setpoint);
-      victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
-          output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
-      return;
-    }
-    throw new MotorConfigurationError(
-        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
-  }
+//   private void setVelocity(double setpoint, double arbFfVolts) {
+//     // Using sensor external to the Victor.
+//     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+//       softPidControllerEnabled = true;
+//       softPidControllerMode = true;
 
-  @Override
-  public void stop() {
-    victor.stopMotor();
+//       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+//       double output = softPidController.calculate(current, setpoint);
+//       victor.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput,
+//           output + (arbFfVolts / Constants.NOMINAL_VOLTAGE));
+//       return;
+//     }
+//     throw new MotorConfigurationError(
+//         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+//   }
 
-    lastSetpoint = 0;
-    lastMode = null;
-  }
+//   @Override
+//   public void stop() {
+//     victor.stopMotor();
 
-  @Override
-  public void follow(SuController other) { 
-    if (!(other.rawController() instanceof IFollower)) {
-      throw new MotorConfigurationError(
-          "CTRE motor controllers can only follow other motor controllers from CTRE");
-    }
+//     lastSetpoint = 0;
+//     lastMode = null;
+//   }
 
-    victor.follow((IMotorController) other.rawController());
-  }
+//   @Override
+//   public void follow(SuController other) { 
+//     if (!(other.rawController() instanceof IFollower)) {
+//       throw new MotorConfigurationError(
+//           "CTRE motor controllers can only follow other motor controllers from CTRE");
+//     }
 
-  @Override
-  public double outputPosition() {
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      double sensorPosition = source.sensor.position();
-      return sensorPosition / source.outputGearRatio;
-    }
-    return 0;
-  }
+//     victor.follow((IMotorController) other.rawController());
+//   }
 
-  @Override
-  public double outputVelocity() {
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      double sensorRpm = source.sensor.velocity();
-      return sensorRpm / source.outputGearRatio;
-    }
-    return 0;
-  }
+//   @Override
+//   public double outputPosition() {
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       double sensorPosition = source.sensor.position();
+//       return sensorPosition / source.outputGearRatio;
+//     }
+//     return 0;
+//   }
 
-  @Override
-  public void setSensorPosition(double position) {
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      source.sensor.setPosition(position * source.outputGearRatio);
-    }
-  }
+//   @Override
+//   public double outputVelocity() {
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       double sensorRpm = source.sensor.velocity();
+//       return sensorRpm / source.outputGearRatio;
+//     }
+//     return 0;
+//   }
 
-  @Override
-  public double currentSetpoint() {
-    return lastSetpoint;
-  }
+//   @Override
+//   public void setSensorPosition(double position) {
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       source.sensor.setPosition(position * source.outputGearRatio);
+//     }
+//   }
 
-  @Override
-  public ControlMode currentControlMode() {
-    return lastMode;
-  }
+//   @Override
+//   public double currentSetpoint() {
+//     return lastSetpoint;
+//   }
 
-  // ------ Begin logged value names -----
-  private String inputVoltageName;
-  private String outputVoltageName;
-  private String lastErrorName;
-  private String controllerTemperatureName;
-  private String hasResetName;
-  private String motorOutputName;
-  private String arbFfName;
-  // ------- End logged value names ------
+//   @Override
+//   public ControlMode currentControlMode() {
+//     return lastMode;
+//   }
 
-  private void initializeLogNames() {
-    inputVoltageName = loggerPrefix + "InputVoltage";
-    outputVoltageName = loggerPrefix + "OutputVoltage";
-    lastErrorName = loggerPrefix + "LastError";
-    controllerTemperatureName = loggerPrefix + "ControllerTemperature";
-    hasResetName = loggerPrefix + "HasResetOccurred";
-    motorOutputName = loggerPrefix + "MotorOutputPercent";
-    arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
-  }
+//   // ------ Begin logged value names -----
+//   private String inputVoltageName;
+//   private String outputVoltageName;
+//   private String lastErrorName;
+//   private String controllerTemperatureName;
+//   private String hasResetName;
+//   private String motorOutputName;
+//   private String arbFfName;
+//   // ------- End logged value names ------
 
-  private void recordLogs() {
-    aLogger.recordOutput(inputVoltageName, victor.getBusVoltage());
-    aLogger.recordOutput(outputVoltageName, victor.getMotorOutputVoltage());
-    aLogger.recordOutput(lastErrorName, victor.getLastError().value);
-    aLogger.recordOutput(controllerTemperatureName, victor.getTemperature());
-    aLogger.recordOutput(hasResetName, victor.hasResetOccurred());
-    aLogger.recordOutput(motorOutputName, victor.getMotorOutputPercent());
-    aLogger.recordOutput(arbFfName, lastArbFf);
-  }
-}
+//   private void initializeLogNames() {
+//     inputVoltageName = loggerPrefix + "InputVoltage";
+//     outputVoltageName = loggerPrefix + "OutputVoltage";
+//     lastErrorName = loggerPrefix + "LastError";
+//     controllerTemperatureName = loggerPrefix + "ControllerTemperature";
+//     hasResetName = loggerPrefix + "HasResetOccurred";
+//     motorOutputName = loggerPrefix + "MotorOutputPercent";
+//     arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
+//   }
+
+//   private void recordLogs() {
+//     aLogger.recordOutput(inputVoltageName, victor.getBusVoltage());
+//     aLogger.recordOutput(outputVoltageName, victor.getMotorOutputVoltage());
+//     aLogger.recordOutput(lastErrorName, victor.getLastError().value);
+//     aLogger.recordOutput(controllerTemperatureName, victor.getTemperature());
+//     aLogger.recordOutput(hasResetName, victor.hasResetOccurred());
+//     aLogger.recordOutput(motorOutputName, victor.getMotorOutputPercent());
+//     aLogger.recordOutput(arbFfName, lastArbFf);
+//   }
+// }

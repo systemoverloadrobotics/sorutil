@@ -1,16 +1,16 @@
 package frc.sorutil;
 
 import java.util.logging.Logger;
-import com.ctre.phoenix.ErrorCode;
+import com.ctre.phoenix6.StatusCode;
 import com.revrobotics.REVLibError;
 
 public class Errors {
-  public static void handleCtre(ErrorCode e, Logger l) {
+  public static void handleCtre(StatusCode e, Logger l) {
     handleCtre(e, l, null);
   }
 
-  public static void handleCtre(ErrorCode e, Logger l, String desc) {
-    if (e == ErrorCode.OK) {
+  public static void handleCtre(StatusCode e, Logger l, String desc) {
+    if (e == StatusCode.OK) {
       return;
     }
 

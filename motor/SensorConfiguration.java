@@ -1,7 +1,7 @@
 package frc.sorutil.motor;
 
-import com.ctre.phoenix.sensors.CANCoder;
-import com.ctre.phoenix.sensors.SensorTimeBase;
+import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.hardware.CANcoder;
 
 /**
  * SensorConfiguration presents an abstracted interface for configuring sensor values used on motors.
@@ -151,12 +151,10 @@ public class SensorConfiguration {
   // ------- External Sensor types -------
 
   public static class CanCoder implements ExternalSensor {
-    private final CANCoder enc;
+    private final CANcoder enc;
 
-    public CanCoder(CANCoder enc) {
+    public CanCoder(CANcoder enc) {
       this.enc = enc;
-
-      enc.configFeedbackCoefficient(0.087890625, "degrees", SensorTimeBase.PerSecond);
     }
 
     public void setPosition(double position) {
@@ -164,11 +162,11 @@ public class SensorConfiguration {
     }
 
     public double position() {
-      return enc.getPosition();
+      return enc.getPosition().getValueAsDouble();
     }
 
     public double velocity() {
-      return (enc.getVelocity() / 360.0) * 60;
+      return (enc.getVelocity().getValueAsDouble() / 360.0) * 60;
     }
   }
 

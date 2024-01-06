@@ -1,393 +1,373 @@
-package frc.sorutil.motor;
+// NEEDS FULL REWRITING, NO USE !!!!!!!!
 
-import com.ctre.phoenix.ErrorCode;
-import com.ctre.phoenix.motorcontrol.DemandType;
-import com.ctre.phoenix.motorcontrol.FeedbackDevice;
-import com.ctre.phoenix.motorcontrol.IFollower;
-import com.ctre.phoenix.motorcontrol.IMotorController;
-import com.ctre.phoenix.motorcontrol.NeutralMode;
-import com.ctre.phoenix.motorcontrol.StatorCurrentLimitConfiguration;
-import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
+// package frc.sorutil.motor;
 
-import edu.wpi.first.wpilibj.motorcontrol.MotorController;
-import frc.robot.Constants;
-import frc.sorutil.Errors;
-import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
-import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
-import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
+// import com.ctre.phoenix6.StatusCode;
+// import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+// import com.ctre.phoenix6.configs.DifferentialSensorsConfigs;
+// import com.ctre.phoenix6.configs.MotorOutputConfigs;
+// import com.ctre.phoenix6.configs.Slot0Configs;
+// import com.ctre.phoenix6.configs.TalonFXConfiguration;
+// import com.ctre.phoenix6.controls.VelocityDutyCycle;
+// import com.ctre.phoenix6.controls.VoltageOut;
+// import com.ctre.phoenix6.hardware.TalonFX;
+// import com.ctre.phoenix6.signals.InvertedValue;
+// import com.ctre.phoenix6.signals.NeutralModeValue;
 
-public class SuTalonFx extends SuController {
-  private static final double DEFAULT_CURRENT_LIMIT = 80;
-  private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
-  private static final double COUNTS_PER_REVOLUTION_INTEGRATED = 2048;
+// import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+// import frc.robot.Constants;
+// import frc.sorutil.Errors;
+// import frc.sorutil.motor.SensorConfiguration.ConnectedSensorSource;
+// import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
+// import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
-  private final WPI_TalonFX talon;
+// public class SuTalonFx extends SuController {
+//   private static final double DEFAULT_CURRENT_LIMIT = 80;
+//   private static final double DEFAULT_NEUTRAL_DEADBAND = 0.04;
+//   private static final double COUNTS_PER_REVOLUTION_INTEGRATED = 2048;
 
-  private boolean voltageControlOverrideSet = false;
-  private Double lastVoltageCompensation = null;
+//   private final TalonFX talon;
 
-  private SuController.ControlMode lastMode;
-  private double lastSetpoint;
-  private double lastArbFf;
+//   private boolean voltageControlOverrideSet = false;
+//   private Double lastVoltageCompensation = null;
 
-  public SuTalonFx(WPI_TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
-    super(talon, motorConfig, sensorConfig,
-        java.util.logging.Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)), name);
+//   private SuController.ControlMode lastMode;
+//   private double lastSetpoint;
+//   private double lastArbFf;
 
-    this.talon = talon;
+//   public SuTalonFx(TalonFX talon, String name, MotorConfiguration motorConfig, SensorConfiguration sensorConfig) {
+//     super(talon, motorConfig, sensorConfig,
+//         java.util.logging.Logger.getLogger(String.format("TalonFX(%d: %s)", talon.getDeviceID(), name)), name);
 
-    configure(motorConfig, sensorConfig);
-    initializeLogNames();
-    aLogger.recordOutput(loggerPrefix + "ID", talon.getDeviceID());
-  }
+//     this.talon = talon;
 
-  @Override
-  protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
-    Errors.handleCtre(talon.clearMotionProfileHasUnderrun(), logger, "clearing motion profile");
-    Errors.handleCtre(talon.clearMotionProfileTrajectories(), logger, "clearing motion profile trajectories");
+//     configure(motorConfig, sensorConfig);
+//     initializeLogNames();
+//     aLogger.recordOutput(loggerPrefix + "ID", talon.getDeviceID());
+//   }
 
-    Errors.handleCtre(talon.clearStickyFaults(), logger, "clearing sticky faults");
+//   @Override
+//   protected void configure(MotorConfiguration config, SensorConfiguration sensorConfig) {
+//     TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-    Errors.handleCtre(talon.configFactoryDefault(), logger, "resetting motor config");
+//     Errors.handleCtre(talon.clearStickyFaults(), logger, "clearing sticky faults");
 
-    talon.setInverted(config.inverted());
+//     talon.setInverted(config.inverted());
 
-    Errors.handleCtre(talon.config_kP(0, config.pidProfile().p()), logger, "setting P constant");
-    Errors.handleCtre(talon.config_kI(0, config.pidProfile().i()), logger, "setting I constant");
-    Errors.handleCtre(talon.config_kD(0, config.pidProfile().d()), logger, "setting D constant");
-    Errors.handleCtre(talon.config_kF(0, config.pidProfile().f()), logger, "setting F constant");
+//     var slot0Configs = new Slot0Configs();
+//     slot0Configs.kV = config.pidProfile().f();
+//     slot0Configs.kP = config.pidProfile().p();
+//     slot0Configs.kI = config.pidProfile().i();
+//     slot0Configs.kD = config.pidProfile().d();
+//     talon.getConfigurator().apply(slot0Configs, 0.050);
 
-    double limit = DEFAULT_CURRENT_LIMIT;
-    if (config.currentLimit() != null) {
-      limit = config.currentLimit();
-    }
+//     Errors.handleCtre(talon.getConfigurator().apply(slot0Configs, 0.050), logger, "setting PIDF constant");
 
-    StatorCurrentLimitConfiguration limitConfig = new StatorCurrentLimitConfiguration();
-    limitConfig.currentLimit = limit;
-    limitConfig.triggerThresholdCurrent = limit;
+//     double limit = DEFAULT_CURRENT_LIMIT;
+//     if (config.currentLimit() != null) {
+//       limit = config.currentLimit();
+//     }
 
-    Errors.handleCtre(talon.configStatorCurrentLimit(limitConfig), logger, "setting current limit");
-    restoreDefaultVoltageCompensation();
+//     cfg.withCurrentLimits(
+//       new CurrentLimitsConfigs().withStatorCurrentLimit(limit).withStatorCurrentLimitEnable(true)
+//     );
 
-    NeutralMode desiredMode = NeutralMode.Coast;
-    if (config.idleMode() == IdleMode.BRAKE) {
-      desiredMode = NeutralMode.Brake;
-    }
-    talon.setNeutralMode(desiredMode);
+//     NeutralModeValue desiredMode = NeutralModeValue.Coast;
+//     if (config.idleMode() == IdleMode.BRAKE) {
+//       desiredMode = NeutralModeValue.Brake;
+//     }
+//     talon.setNeutralMode(desiredMode);
 
-    double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
-    if (config.neutralDeadband() != null) {
-      neutralDeadband = config.neutralDeadband();
-    }
-    Errors.handleCtre(talon.configNeutralDeadband(neutralDeadband), logger, "setting neutral deadband");
+//     double neutralDeadband = DEFAULT_NEUTRAL_DEADBAND;
+//     if (config.neutralDeadband() != null) {
+//       neutralDeadband = config.neutralDeadband();
+//     }
+//     cfg.withMotorOutput(new MotorOutputConfigs()
+//       .withDutyCycleNeutralDeadband(neutralDeadband)
+//       .withPeakForwardDutyCycle(config.maxOutput())
+//       .withPeakReverseDutyCycle(-config.maxOutput())
+//     );
+//     // Errors.handleCtre(talon.configNominalOutputReverse(0), logger, "configuring nominal output");
+//     // Errors.handleCtre(talon.configNominalOutputForward(0), logger, "configuring nominal output");
 
-    Errors.handleCtre(talon.configPeakOutputForward(config.maxOutput()), logger, "configuring max output");
-    Errors.handleCtre(talon.configPeakOutputReverse(-config.maxOutput()), logger, "configuring max output");
-    Errors.handleCtre(talon.configNominalOutputReverse(0), logger, "configuring nominal output");
-    Errors.handleCtre(talon.configNominalOutputForward(0), logger, "configuring nominal output");
+//     if (sensorConfig != null) {
+//       if (sensorConfig.source() instanceof ConnectedSensorSource) {
+//         throw new MotorConfigurationError(
+//             "Talon FX does not supported directly connected sensors, but was configured to use one.");
+//       }
 
-    if (sensorConfig != null) {
-      if (sensorConfig.source() instanceof ConnectedSensorSource) {
-        throw new MotorConfigurationError(
-            "Talon FX does not supported directly connected sensors, but was configured to use one.");
-      }
+//       if (sensorConfig.source() instanceof IntegratedSensorSource) {
+//         // cfg.withDifferentialSensors(new DifferentialSensorsConfigs().with)
+//         // Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor, 0, 100), logger,
+//         //     "configuring sensor to integrated feedback sensor");
+//       }
 
-      if (sensorConfig.source() instanceof IntegratedSensorSource) {
-        Errors.handleCtre(talon.configSelectedFeedbackSensor(FeedbackDevice.IntegratedSensor, 0, 100), logger,
-            "configuring sensor to integrated feedback sensor");
-      }
+//       if (sensorConfig.source() instanceof ExternalSensorSource) {
+//         configureSoftPid();
+//       }
+//     }
+//   }
 
-      if (sensorConfig.source() instanceof ExternalSensorSource) {
-        configureSoftPid();
-      }
-    }
-  }
+//   @Override
+//   public MotorController rawController() {
+//     return talon;
+//   }
 
-  @Override
-  public MotorController rawController() {
-    return talon;
-  }
+//   @Override
+//   public void tick() {
+//     super.tick();
 
-  // Record the last log value to prevent log flooding.
-  ErrorCode lastCode = ErrorCode.OK;
+//     if (talon.hasResetOccurred()) {
 
-  @Override
-  public void tick() {
-    super.tick();
+//     }
 
-    if (lastCode != talon.getLastError()) {
-      Errors.handleCtre(talon.getLastError(), logger, "in motor loop, likely from setting a motor update");
-      lastCode = talon.getLastError();
-    }
+//     if (softPidControllerEnabled) {
+//       double current = 0;
+//       if (softPidControllerMode) {
+//         // velocity mode
+//         current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+//       } else {
+//         // position mode
+//         current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+//       }
+//       double output = softPidController.calculate(current);
+//       if (lastArbFf == 0) {
+//         talon.set(output);
+//       } else {
+//         // TODO FIX :(
+//         // talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward, lastArbFf / Constants.NOMINAL_VOLTAGE);
+//       }
+//     }
 
-    if (talon.hasResetOccurred()) {
+//     recordLogs();
+//   }
 
-    }
+//   @Override
+//   public void set(SuController.ControlMode mode, double setpoint) {
+//     set(mode, setpoint, 0);
+//   }
 
-    if (softPidControllerEnabled) {
-      double current = 0;
-      if (softPidControllerMode) {
-        // velocity mode
-        current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
-      } else {
-        // position mode
-        current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
-      }
-      double output = softPidController.calculate(current);
-      if (lastArbFf == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
-      } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
-            lastArbFf / Constants.NOMINAL_VOLTAGE);
-      }
-    }
+//   @Override
+//   public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
+//     if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
+//       voltageControlOverrideSet = false;
+//       lastVoltageCompensation = null;
+//     }
 
-    recordLogs();
-  }
+//     // Skip updating the motor if the setpoint is the same, this reduces
+//     // unneccessary CAN messages.
+//     if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
+//       return;
+//     }
+//     lastSetpoint = setpoint;
+//     lastMode = mode;
+//     softPidControllerEnabled = false;
+//     lastArbFf = arbFfVolts;
 
-  private void restoreDefaultVoltageCompensation() {
-    Errors.handleCtre(talon.configVoltageCompSaturation(SuController.DEFAULT_VOLTAGE_COMPENSTAION),
-        logger, "configuring voltage compenstation");
-    talon.enableVoltageCompensation(config.voltageCompenstationEnabled());
-  }
+//     switch (mode) {
+//       case PERCENT_OUTPUT:
+//         talon.set(setpoint);
+//         break;
+//       case POSITION:
+//         setPosition(setpoint, arbFfVolts);
+//         break;
+//       case VELOCITY:
+//         setVelocity(setpoint, arbFfVolts);
+//         break;
+//       case VOLTAGE:
+//         boolean negative = setpoint < 0;
+//         double abs = Math.abs(setpoint);
+//         talon.setControl(new VoltageOut(negative ? -1 : 1));
+//         break;
+//     }
+//   }
 
-  @Override
-  public void set(SuController.ControlMode mode, double setpoint) {
-    set(mode, setpoint, 0);
-  }
+//   private void setPosition(double setpoint, double arbFfVolts) {
+//     // Using the integrated Falcon source
+//     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+//       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
+//       double motorDegrees = integrated.outputGearRatio * setpoint;
+//       double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED / 360.0;
+//       double output = motorDegrees * countsToDegrees;
 
-  @Override
-  public void set(SuController.ControlMode mode, double setpoint, double arbFfVolts) {
-    if (voltageControlOverrideSet && mode != SuController.ControlMode.VOLTAGE) {
-      restoreDefaultVoltageCompensation();
-      voltageControlOverrideSet = false;
-      lastVoltageCompensation = null;
-    }
+//       if (arbFfVolts == 0) {
+//         talon.set(output);
+//       } else {
+//         // talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output, DemandType.ArbitraryFeedForward, arbFfVolts / Constants.NOMINAL_VOLTAGE);
+//       }
+//       return;
+//     }
+//     // Using sensor external to the Falcon.
+//     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+//       softPidControllerEnabled = true;
+//       softPidControllerMode = false;
 
-    // Skip updating the motor if the setpoint is the same, this reduces
-    // unneccessary CAN messages.
-    if (setpoint == lastSetpoint && mode == lastMode && arbFfVolts == lastArbFf) {
-      return;
-    }
-    lastSetpoint = setpoint;
-    lastMode = mode;
-    softPidControllerEnabled = false;
-    lastArbFf = arbFfVolts;
+//       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
+//       double output = softPidController.calculate(current, setpoint);
+//       if (arbFfVolts == 0) {
+//         talon.set(output);
+//       } else {
+//         // talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
+//         //     arbFfVolts / Constants.NOMINAL_VOLTAGE);
+//       }
+//       return;
+//     }
+//     throw new MotorConfigurationError(
+//         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+//   }
 
-    switch (mode) {
-      case PERCENT_OUTPUT:
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, setpoint);
-        break;
-      case POSITION:
-        setPosition(setpoint, arbFfVolts);
-        break;
-      case VELOCITY:
-        setVelocity(setpoint, arbFfVolts);
-        break;
-      case VOLTAGE:
-        boolean negative = setpoint < 0;
-        double abs = Math.abs(setpoint);
-        if (lastVoltageCompensation != null && setpoint != lastVoltageCompensation) {
-          Errors.handleCtre(talon.configVoltageCompSaturation(abs), logger,
-              "configuring voltage compenstation for voltage control");
-          lastVoltageCompensation = setpoint;
-        }
-        if (!voltageControlOverrideSet) {
-          talon.enableVoltageCompensation(true);
-          voltageControlOverrideSet = true;
-        }
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, negative ? -1 : 1);
-        break;
-    }
-  }
+//   private void setVelocity(double setpoint, double arbFfVolts) {
+//     // Using the integrated Falcon source
+//     if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
+//       var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
+//       double motorRpm = integrated.outputGearRatio * setpoint;
+//       double motorRps = motorRpm / 60.0;
+//       double output = (COUNTS_PER_REVOLUTION_INTEGRATED * motorRps) / 10.0;
 
-  private void setPosition(double setpoint, double arbFfVolts) {
-    // Using the integrated Falcon source
-    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double motorDegrees = integrated.outputGearRatio * setpoint;
-      double countsToDegrees = COUNTS_PER_REVOLUTION_INTEGRATED / 360.0;
-      double output = motorDegrees * countsToDegrees;
+//       if (arbFfVolts == 0) {
+//         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+//       } else {
+//         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
+//             arbFfVolts / Constants.NOMINAL_VOLTAGE);
+//       }
+//       return;
+//     }
+//     // Using sensor external to the Falcon.
+//     if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
+//       softPidControllerEnabled = true;
+//       softPidControllerMode = true;
 
-      if (arbFfVolts == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output);
-      } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Position, output, DemandType.ArbitraryFeedForward,
-            arbFfVolts / Constants.NOMINAL_VOLTAGE);
-      }
-      return;
-    }
-    // Using sensor external to the Falcon.
-    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      softPidControllerEnabled = true;
-      softPidControllerMode = false;
+//       double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
+//       double output = softPidController.calculate(current, setpoint);
+//       if (arbFfVolts == 0) {
+//         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
+//       } else {
+//         talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
+//             arbFfVolts / Constants.NOMINAL_VOLTAGE);
+//       }
+//       return;
+//     }
+//     throw new MotorConfigurationError(
+//         "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
+//   }
 
-      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.position();
-      double output = softPidController.calculate(current, setpoint);
-      if (arbFfVolts == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output);
-      } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.PercentOutput, output, DemandType.ArbitraryFeedForward,
-            arbFfVolts / Constants.NOMINAL_VOLTAGE);
-      }
-      return;
-    }
-    throw new MotorConfigurationError(
-        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
-  }
+//   @Override
+//   public void stop() {
+//     talon.stopMotor();
 
-  private void setVelocity(double setpoint, double arbFfVolts) {
-    // Using the integrated Falcon source
-    if (sensorConfig.source() instanceof SensorConfiguration.IntegratedSensorSource) {
-      var integrated = (SensorConfiguration.IntegratedSensorSource) sensorConfig.source();
-      double motorRpm = integrated.outputGearRatio * setpoint;
-      double motorRps = motorRpm / 60.0;
-      double output = (COUNTS_PER_REVOLUTION_INTEGRATED * motorRps) / 10.0;
+//     lastMode = null;
+//     lastSetpoint = 0;
+//   }
 
-      if (arbFfVolts == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
-      } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
-            arbFfVolts / Constants.NOMINAL_VOLTAGE);
-      }
-      return;
-    }
-    // Using sensor external to the Falcon.
-    if (sensorConfig.source() instanceof SensorConfiguration.ExternalSensorSource) {
-      softPidControllerEnabled = true;
-      softPidControllerMode = true;
+//   @Override
+//   public void follow(SuController other) {
+//     if (!(other.rawController() instanceof IFollower)) {
+//       throw new MotorConfigurationError(
+//           "CTRE motor controllers can only follow other motor controllers from CTRE");
+//     }
 
-      double current = ((ExternalSensorSource) sensorConfig.source()).sensor.velocity();
-      double output = softPidController.calculate(current, setpoint);
-      if (arbFfVolts == 0) {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output);
-      } else {
-        talon.set(com.ctre.phoenix.motorcontrol.ControlMode.Velocity, output, DemandType.ArbitraryFeedForward,
-            arbFfVolts / Constants.NOMINAL_VOLTAGE);
-      }
-      return;
-    }
-    throw new MotorConfigurationError(
-        "unkonwn type of sensor configuration: " + sensorConfig.source().getClass().getName());
-  }
+//     talon.follow((IMotorController) other.rawController());
+//   }
 
-  @Override
-  public void stop() {
-    talon.stopMotor();
+//   @Override
+//   public double outputPosition() {
+//     if (sensorConfig.source() instanceof IntegratedSensorSource) {
+//       IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+//       double outputShaftPosition = talon.getSelectedSensorPosition() / COUNTS_PER_REVOLUTION_INTEGRATED * 360.0;
+//       return outputShaftPosition / source.outputGearRatio;
+//     }
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       double sensorPosition = source.sensor.position();
+//       return sensorPosition / source.outputGearRatio;
+//     }
+//     return 0;
+//   }
 
-    lastMode = null;
-    lastSetpoint = 0;
-  }
+//   @Override
+//   public double outputVelocity() {
+//     if (sensorConfig.source() instanceof IntegratedSensorSource) {
+//       IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+//       double outputShaftRpm = (talon.getSelectedSensorVelocity() * 10.0 * 60.0) / COUNTS_PER_REVOLUTION_INTEGRATED;
+//       return outputShaftRpm / source.outputGearRatio;
+//     }
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       double sensorRpm = source.sensor.velocity();
+//       return sensorRpm / source.outputGearRatio;
+//     }
+//     return 0;
+//   }
 
-  @Override
-  public void follow(SuController other) {
-    if (!(other.rawController() instanceof IFollower)) {
-      throw new MotorConfigurationError(
-          "CTRE motor controllers can only follow other motor controllers from CTRE");
-    }
+//   @Override
+//   public void setSensorPosition(double position) {
+//     if (sensorConfig.source() instanceof IntegratedSensorSource) {
+//       System.out.println("Hi start");
+//       IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
+//       double offset = source.outputGearRatio * COUNTS_PER_REVOLUTION_INTEGRATED * position;
+//       talon.setSelectedSensorPosition(offset);
+//     }
+//     if (sensorConfig.source() instanceof ExternalSensorSource) {
+//       ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
+//       source.sensor.setPosition(position * source.outputGearRatio);
+//     }
+//   }
 
-    talon.follow((IMotorController) other.rawController());
-  }
+//   @Override
+//   public double currentSetpoint() {
+//     return lastSetpoint;
+//   }
 
-  @Override
-  public double outputPosition() {
-    if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
-      double outputShaftPosition = talon.getSelectedSensorPosition() / COUNTS_PER_REVOLUTION_INTEGRATED * 360.0;
-      return outputShaftPosition / source.outputGearRatio;
-    }
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      double sensorPosition = source.sensor.position();
-      return sensorPosition / source.outputGearRatio;
-    }
-    return 0;
-  }
+//   @Override
+//   public ControlMode currentControlMode() {
+//     return lastMode;
+//   }
 
-  @Override
-  public double outputVelocity() {
-    if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
-      double outputShaftRpm = (talon.getSelectedSensorVelocity() * 10.0 * 60.0) / COUNTS_PER_REVOLUTION_INTEGRATED;
-      return outputShaftRpm / source.outputGearRatio;
-    }
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      double sensorRpm = source.sensor.velocity();
-      return sensorRpm / source.outputGearRatio;
-    }
-    return 0;
-  }
+//   // ------ Begin logged value names -----
+//   private String inputVoltageName;
+//   private String outputVoltageName;
+//   private String supplyCurrentName;
+//   private String lastErrorName;
+//   private String selectedSensorPositionName;
+//   private String selectedSensorVelocityName;
+//   private String controllerTemperatureName;
+//   private String hasResetName;
+//   private String closedLoopTargetName;
+//   private String closedLoopErrorName;
+//   private String motorOutputName;
+//   private String arbFfName;
+//   // ------- End logged value names ------
 
-  @Override
-  public void setSensorPosition(double position) {
-    if (sensorConfig.source() instanceof IntegratedSensorSource) {
-      System.out.println("Hi start");
-      IntegratedSensorSource source = (IntegratedSensorSource) sensorConfig.source();
-      double offset = source.outputGearRatio * COUNTS_PER_REVOLUTION_INTEGRATED * position;
-      talon.setSelectedSensorPosition(offset);
-    }
-    if (sensorConfig.source() instanceof ExternalSensorSource) {
-      ExternalSensorSource source = (ExternalSensorSource) sensorConfig.source();
-      source.sensor.setPosition(position * source.outputGearRatio);
-    }
-  }
+//   private void initializeLogNames() {
+//     inputVoltageName = loggerPrefix + "InputVoltage";
+//     outputVoltageName = loggerPrefix + "OutputVoltage";
+//     supplyCurrentName = loggerPrefix + "SupplyCurrent";
+//     lastErrorName = loggerPrefix + "LastError";
+//     selectedSensorPositionName = loggerPrefix + "SelectedSensorPosition";
+//     selectedSensorVelocityName = loggerPrefix + "SelectedSensorVelocity";
+//     controllerTemperatureName = loggerPrefix + "ControllerTemperature";
+//     hasResetName = loggerPrefix + "HasResetOccurred";
+//     closedLoopTargetName = loggerPrefix + "ClosedLoopTarget";
+//     closedLoopErrorName = loggerPrefix + "ClosedLoopError";
+//     motorOutputName = loggerPrefix + "MotorOutputPercent";
+//     arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
+//   }
 
-  @Override
-  public double currentSetpoint() {
-    return lastSetpoint;
-  }
+//   private void recordLogs() {
+//     aLogger.recordOutput(inputVoltageName, talon.getBusVoltage());
+//     aLogger.recordOutput(outputVoltageName, talon.getMotorOutputVoltage());
+//     aLogger.recordOutput(supplyCurrentName, talon.getSupplyCurrent());
+//     aLogger.recordOutput(lastErrorName, talon.getLastError().value);
+//     aLogger.recordOutput(selectedSensorPositionName, talon.getSelectedSensorPosition());
+//     aLogger.recordOutput(selectedSensorVelocityName, talon.getSelectedSensorVelocity());
+//     aLogger.recordOutput(controllerTemperatureName, talon.getTemperature());
+//     aLogger.recordOutput(hasResetName, talon.hasResetOccurred());
+//     aLogger.recordOutput(motorOutputName, talon.getMotorOutputPercent());
+//     aLogger.recordOutput(arbFfName, lastArbFf);
 
-  @Override
-  public ControlMode currentControlMode() {
-    return lastMode;
-  }
-
-  // ------ Begin logged value names -----
-  private String inputVoltageName;
-  private String outputVoltageName;
-  private String supplyCurrentName;
-  private String lastErrorName;
-  private String selectedSensorPositionName;
-  private String selectedSensorVelocityName;
-  private String controllerTemperatureName;
-  private String hasResetName;
-  private String closedLoopTargetName;
-  private String closedLoopErrorName;
-  private String motorOutputName;
-  private String arbFfName;
-  // ------- End logged value names ------
-
-  private void initializeLogNames() {
-    inputVoltageName = loggerPrefix + "InputVoltage";
-    outputVoltageName = loggerPrefix + "OutputVoltage";
-    supplyCurrentName = loggerPrefix + "SupplyCurrent";
-    lastErrorName = loggerPrefix + "LastError";
-    selectedSensorPositionName = loggerPrefix + "SelectedSensorPosition";
-    selectedSensorVelocityName = loggerPrefix + "SelectedSensorVelocity";
-    controllerTemperatureName = loggerPrefix + "ControllerTemperature";
-    hasResetName = loggerPrefix + "HasResetOccurred";
-    closedLoopTargetName = loggerPrefix + "ClosedLoopTarget";
-    closedLoopErrorName = loggerPrefix + "ClosedLoopError";
-    motorOutputName = loggerPrefix + "MotorOutputPercent";
-    arbFfName = loggerPrefix + "ArbitraryFeedForwardVolts";
-  }
-
-  private void recordLogs() {
-    aLogger.recordOutput(inputVoltageName, talon.getBusVoltage());
-    aLogger.recordOutput(outputVoltageName, talon.getMotorOutputVoltage());
-    aLogger.recordOutput(supplyCurrentName, talon.getSupplyCurrent());
-    aLogger.recordOutput(lastErrorName, talon.getLastError().value);
-    aLogger.recordOutput(selectedSensorPositionName, talon.getSelectedSensorPosition());
-    aLogger.recordOutput(selectedSensorVelocityName, talon.getSelectedSensorVelocity());
-    aLogger.recordOutput(controllerTemperatureName, talon.getTemperature());
-    aLogger.recordOutput(hasResetName, talon.hasResetOccurred());
-    aLogger.recordOutput(motorOutputName, talon.getMotorOutputPercent());
-    aLogger.recordOutput(arbFfName, lastArbFf);
-
-    if (lastMode == ControlMode.POSITION || lastMode == ControlMode.VELOCITY) {
-      aLogger.recordOutput(closedLoopTargetName, talon.getClosedLoopTarget());
-      aLogger.recordOutput(closedLoopErrorName, talon.getClosedLoopError());
-    }
-  }
-}
+//     if (lastMode == ControlMode.POSITION || lastMode == ControlMode.VELOCITY) {
+//       aLogger.recordOutput(closedLoopTargetName, talon.getClosedLoopTarget());
+//       aLogger.recordOutput(closedLoopErrorName, talon.getClosedLoopError());
+//     }
+//   }
+// }
