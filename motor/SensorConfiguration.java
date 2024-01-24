@@ -198,7 +198,7 @@ public class SensorConfiguration {
    * SensorSource describes what source the motor should use for closed loop control, if any at all.
    */
   public static interface SensorSource {
-    // TODO: remote
+    // TODOO: remote
     // CTRE controllers support remote sensors (i.e. integral sensors from other controllers) as a sensor input. We
     // should add support for this.
   }

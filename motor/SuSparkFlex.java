@@ -74,7 +74,7 @@ public class SuSparkFlex extends SuController {
     }
     Errors.handleRev(sparkFlex.setIdleMode(desiredMode), logger, "setting idle mode");
 
-    // TODO: this should be improved to support multiple PID controllers.
+    // TODOO: this should be improved to support multiple PID controllers.
     Errors.handleRev(sparkFlex.getPIDController().setOutputRange(-config.maxOutput(), config.maxOutput()), logger,
         "setting neutral deadband");
 

@@ -74,7 +74,7 @@ public class SuSparkMax extends SuController {
     }
     Errors.handleRev(sparkMax.setIdleMode(desiredMode), logger, "setting idle mode");
 
-    // TODO: this should be improved to support multiple PID controllers.
+    // TODOO: this should be improved to support multiple PID controllers.
     Errors.handleRev(sparkMax.getPIDController().setOutputRange(-config.maxOutput(), config.maxOutput()), logger,
         "setting neutral deadband");
 

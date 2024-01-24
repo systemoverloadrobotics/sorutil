@@ -116,7 +116,7 @@ public class SorMath {
     return a * a * a;
   } */
 
-  // TODO: Change to this function if we cube response curve function
+  // TODOO: Change to this function if we cube response curve function
 
 
   /**
