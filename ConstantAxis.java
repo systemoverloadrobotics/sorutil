@@ -1,6 +1,10 @@
 package frc.sorutil;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
+
+import edu.wpi.first.wpilibj.event.BooleanEvent;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 public class ConstantAxis {
   private final int stick;
@@ -13,5 +17,9 @@ public class ConstantAxis {
 
   public DoubleSupplier get() {
     return () -> ConstantInput.get().lazyJoy(stick).getRawAxis(idx);
+  }
+
+  public BooleanEvent getButton() {
+    return ConstantInput.get().lazyJoy(stick).axisGreaterThan(stick, idx, CommandScheduler.getInstance().getDefaultButtonLoop());
   }
 }

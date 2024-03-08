@@ -3,6 +3,8 @@ package frc.sorutil.motor;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.CANcoder;
 
+import edu.wpi.first.wpilibj.DutyCycleEncoder;
+
 /**
  * SensorConfiguration presents an abstracted interface for configuring sensor values used on motors.
  * 
@@ -167,6 +169,29 @@ public class SensorConfiguration {
 
     public double velocity() {
       return (enc.getVelocity().getValueAsDouble() / 360.0) * 60;
+    }
+  }
+
+  public static class RevAbsolute implements ExternalSensor {
+    private final DutyCycleEncoder enc;
+    private final boolean flip;
+
+    public RevAbsolute(DutyCycleEncoder enc, boolean flip) {
+      this.enc = enc;
+      this.flip = flip;
+    }
+
+    public void setPosition(double position) {
+      enc.setPositionOffset(position);
+    }
+
+    public double position() {
+      return enc.get() * (flip ? -1 : 1);
+    }
+
+    public double velocity() {
+      // unsupported
+      return -1;
     }
   }
 
