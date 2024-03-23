@@ -16,7 +16,7 @@ import frc.sorutil.motor.SensorConfiguration.ExternalSensorSource;
 import frc.sorutil.motor.SensorConfiguration.IntegratedSensorSource;
 
 public class SuSparkMax extends SuController {
-  private static final double STALL_LIMIT = 30;
+  private static final double STALL_LIMIT = 30; // DEPRECATED
   private static final double DEFAULT_CURRENT_LIMIT = 70;
   private static final int ANALOG_SAMPLE_DEPTH = 16;
 
@@ -66,7 +66,7 @@ public class SuSparkMax extends SuController {
       limit = config.currentLimit();
     }
 
-    Errors.handleRev(sparkMax.setSmartCurrentLimit((int) STALL_LIMIT, (int) limit), logger, "setting current limit");
+    Errors.handleRev(sparkMax.setSmartCurrentLimit((int) limit, (int) limit), logger, "setting current limit");
 
     CANSparkMax.IdleMode desiredMode = CANSparkMax.IdleMode.kCoast;
     if (config.idleMode() == SuController.IdleMode.BRAKE) {
